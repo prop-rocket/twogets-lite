@@ -1,0 +1,14 @@
+-- =============================================================================
+-- TwoGets — seed.sql (local development convenience)
+-- Run AFTER creating at least one auth user (e.g. via the app's signup form).
+--
+-- Promote a user to admin (replace the email):
+--   update public.users set role = 'admin' where email = 'admin@twogets.app';
+--
+-- Note: properties/inquiries/reviews are user-generated; create them through
+-- the app so storage paths and RLS-owned rows stay consistent.
+-- =============================================================================
+
+-- Example: promote the first registered user to admin (uncomment to use)
+-- update public.users set role = 'admin'
+-- where id = (select id from public.users order by created_at limit 1);

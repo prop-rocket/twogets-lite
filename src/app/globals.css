@@ -1,0 +1,98 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * TwoGets brand system (Logo & Brand Guidelines, April 2026)
+ *  Primary Blue  #003DD1
+ *  Amber Yellow  #FFAB00
+ *  Light         #FFFFFF
+ *  Dark          #1C1B1F
+ *  Type          Advent Pro
+ */
+:root {
+  --background: #ffffff;
+  --foreground: #1c1b1f;
+  --card: #ffffff;
+  --card-foreground: #1c1b1f;
+  --popover: #ffffff;
+  --popover-foreground: #1c1b1f;
+  --primary: #003dd1;
+  --primary-foreground: #ffffff;
+  --secondary: #eef2ff;
+  --secondary-foreground: #003dd1;
+  --muted: #f4f4f6;
+  --muted-foreground: #6b6a72;
+  --accent: #ffab00;
+  --accent-foreground: #1c1b1f;
+  --destructive: #dc2626;
+  --border: #e5e5ea;
+  --input: #e5e5ea;
+  --ring: #003dd1;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #1c1b1f;
+  --foreground: #f5f5f7;
+  --card: #232227;
+  --card-foreground: #f5f5f7;
+  --popover: #232227;
+  --popover-foreground: #f5f5f7;
+  --primary: #4d7aff;
+  --primary-foreground: #ffffff;
+  --secondary: #2a3045;
+  --secondary-foreground: #c7d2fe;
+  --muted: #2a292e;
+  --muted-foreground: #a3a2aa;
+  --accent: #ffab00;
+  --accent-foreground: #1c1b1f;
+  --destructive: #ef4444;
+  --border: #34333a;
+  --input: #34333a;
+  --ring: #4d7aff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--font-advent-pro), system-ui, sans-serif;
+  --font-display: var(--font-advent-pro), system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-size: 1.0625rem;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-tight;
+  }
+}
