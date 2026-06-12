@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { verificationReviewSchema } from "@/lib/validations";
-import type { ActionResult, PropertyStatus, ReportStatus } from "@/types";
+import type { ActionResult, PropertyStatus, ReportStatus, UserPlan } from "@/types";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -76,6 +76,25 @@ export async function setUserBanned(userId: string, banned: boolean): Promise<Ac
 
   revalidatePath("/admin/users");
   return { ok: true, message: banned ? "User banned" : "User unbanned" };
+}
+
+export async function setUserPlan(userId: string, plan: UserPlan): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: "Admin access required" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("users").update({ plan }).eq("id", userId);
+  if (error) return { ok: false, error: error.message };
+
+  await supabase.from("audit_logs").insert({
+    actor_id: admin.id,
+    action: `user.plan.${plan}`,
+    entity_type: "user",
+    entity_id: userId,
+  });
+
+  revalidatePath("/admin/users");
+  return { ok: true, message: plan === "plus" ? "Upgraded to Plus" : "Moved to Free plan" };
 }
 
 export async function adminSetListingStatus(

@@ -1,8 +1,9 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import { PAGE_SIZE, type SortOption } from "@/lib/constants";
-import type { PropertyDetails, PropertyListItem, ReviewWithReviewer } from "@/types";
+import { FREE_DAILY_RIGHT_SWIPES, PAGE_SIZE, SWIPE_DECK_SIZE, type SortOption } from "@/lib/constants";
+import type { ParsedSearch } from "@/lib/nl-search";
+import type { PropertyDetails, PropertyListItem, ReviewWithReviewer, SwipeCardItem, UserRow } from "@/types";
 
 export interface PropertySearchParams {
   q?: string;
@@ -140,4 +141,126 @@ export async function isPropertySaved(propertyId: string, userId: string | undef
     .eq("property_id", propertyId)
     .maybeSingle();
   return Boolean(data);
+}
+
+// ---------------------------------------------------------------------------
+// Swipe-to-find
+// ---------------------------------------------------------------------------
+
+/** Every property this tenant has already swiped (either direction). */
+export async function getSwipedPropertyIds(userId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("swipes")
+    .select("property_id")
+    .eq("tenant_id", userId);
+  if (error) {
+    // Table missing until migration 00005 runs — degrade to an unfiltered deck.
+    console.error("getSwipedPropertyIds:", error.message);
+    return [];
+  }
+  return (data ?? []).map((s) => s.property_id);
+}
+
+/** Right swipes left today on the free plan; null = unlimited (plus). */
+export async function getSwipeQuota(user: UserRow | null): Promise<number | null> {
+  if (!user) return FREE_DAILY_RIGHT_SWIPES; // anonymous — quota applies after login
+  if (user.plan === "plus") return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("right_swipes_today");
+  if (error) {
+    console.error("getSwipeQuota:", error.message);
+    return FREE_DAILY_RIGHT_SWIPES;
+  }
+  return Math.max(0, FREE_DAILY_RIGHT_SWIPES - (data ?? 0));
+}
+
+function sanitizeIlike(s: string) {
+  return s.replace(/[%,()]/g, "").trim();
+}
+
+type DeckFilters = ParsedSearch & { relaxed?: boolean };
+
+function buildDeckQuery(supabase: Awaited<ReturnType<typeof createClient>>, f: DeckFilters) {
+  let query = supabase
+    .from("properties")
+    .select(LIST_SELECT)
+    .eq("status", "active");
+
+  if (f.bhk.length === 1) query = query.eq("bhk", f.bhk[0]);
+  else if (f.bhk.length > 1) query = query.in("bhk", f.bhk);
+
+  if (f.location) {
+    const loc = sanitizeIlike(f.location);
+    if (loc) query = query.or(`city.ilike.%${loc}%,locality.ilike.%${loc}%`);
+  }
+  if (f.minRent) query = query.gte("rent", f.minRent);
+  if (f.maxRent) {
+    // Relaxed pass stretches the ceiling 15% to surface close matches.
+    query = query.lte("rent", f.relaxed ? Math.round(f.maxRent * 1.15) : f.maxRent);
+  }
+  if (f.petFriendly) query = query.eq("pet_friendly", true);
+  if (!f.relaxed && f.furnished) query = query.eq("furnished_status", f.furnished);
+  if (!f.relaxed && f.propertyType) query = query.eq("property_type", f.propertyType);
+  if (f.occupancy) query = query.in("preferred_tenants", [f.occupancy, "any"]);
+  if (f.verifiedOnly) query = query.eq("is_verified", true);
+
+  return query
+    .order("is_verified", { ascending: false })
+    .order("avg_rating", { ascending: false })
+    .order("created_at", { ascending: false });
+}
+
+/**
+ * Builds the swipe deck: active listings matching the parsed requirements,
+ * minus everything already swiped. If the strict pass returns a thin deck,
+ * a relaxed pass (budget +15%, furnishing/type dropped) tops it up with
+ * cards flagged close_match.
+ */
+export async function getSwipeDeck(
+  parsed: ParsedSearch,
+  excludeIds: string[],
+): Promise<SwipeCardItem[]> {
+  const supabase = await createClient();
+  const excluded = new Set(excludeIds);
+
+  let strictQuery = buildDeckQuery(supabase, parsed);
+  if (excluded.size) strictQuery = strictQuery.not("id", "in", `(${[...excluded].join(",")})`);
+
+  const { data: strict, error } = await strictQuery.limit(SWIPE_DECK_SIZE);
+  if (error) {
+    console.error("getSwipeDeck:", error.message);
+    return [];
+  }
+
+  const cards = (strict ?? []) as unknown as SwipeCardItem[];
+  if (cards.length >= 5) return cards;
+
+  // Thin deck — top up with close matches (skip if nothing to relax).
+  if (!parsed.maxRent && !parsed.furnished && !parsed.propertyType) return cards;
+
+  for (const c of cards) excluded.add(c.id);
+  let relaxedQuery = buildDeckQuery(supabase, { ...parsed, relaxed: true });
+  if (excluded.size) relaxedQuery = relaxedQuery.not("id", "in", `(${[...excluded].join(",")})`);
+  const { data: relaxedData } = await relaxedQuery.limit(SWIPE_DECK_SIZE - cards.length);
+
+  const closeMatches = ((relaxedData ?? []) as unknown as SwipeCardItem[]).map((c) => ({
+    ...c,
+    close_match: true,
+  }));
+  return [...cards, ...closeMatches];
+}
+
+/** Shortlist demand per property for an owner's listings (id → count). */
+export async function getShortlistCounts(propertyIds: string[]): Promise<Record<string, number>> {
+  const counts: Record<string, number> = {};
+  if (!propertyIds.length) return counts;
+  const supabase = await createClient();
+  const results = await Promise.all(
+    propertyIds.map((pid) => supabase.rpc("property_right_swipe_count", { pid })),
+  );
+  propertyIds.forEach((pid, i) => {
+    counts[pid] = results[i].error ? 0 : (results[i].data ?? 0);
+  });
+  return counts;
 }

@@ -7,6 +7,7 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { getCurrentUser } from "@/lib/supabase/server";
 
 const NAV_LINKS = [
+  { href: "/swipe", label: "Swipe to Find" },
   { href: "/properties", label: "Browse Homes" },
   { href: "/#how-it-works", label: "How It Works" },
   { href: "/#trust", label: "Trust & Safety" },

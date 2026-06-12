@@ -24,6 +24,11 @@ export type PropertyListItem = PropertyWithImages & {
   owner: PublicUser;
 };
 
+/** Card in the swipe deck. close_match = surfaced by relaxed filters. */
+export type SwipeCardItem = PropertyListItem & {
+  close_match?: boolean;
+};
+
 export type PropertyDetails = PropertyWithImages & {
   owner: PublicUser;
   property_amenities: { amenity: { id: number; slug: string; label: string; icon: string } }[];
@@ -53,4 +58,10 @@ export type VerificationWithUser = VerificationRequestRow & {
 /** Standard envelope returned by all server actions. */
 export type ActionResult<T = undefined> =
   | { ok: true; data?: T; message?: string }
-  | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
+  | {
+      ok: false;
+      error: string;
+      /** Machine-readable reason for errors the UI branches on (e.g. "quota"). */
+      code?: string;
+      fieldErrors?: Record<string, string[]>;
+    };

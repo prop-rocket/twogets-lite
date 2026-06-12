@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Ban, Check, ExternalLink, Eye, EyeOff, ShieldCheck, X } from "lucide-react";
+import { Ban, Check, ExternalLink, Eye, EyeOff, ShieldCheck, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -22,8 +22,9 @@ import {
   resolveReport,
   reviewVerification,
   setUserBanned,
+  setUserPlan,
 } from "@/server/actions/admin";
-import type { PropertyStatus, ReportStatus } from "@/types";
+import type { PropertyStatus, ReportStatus, UserPlan } from "@/types";
 
 export function ViewDocumentButton({ storagePath }: { storagePath: string }) {
   const [pending, startTransition] = React.useTransition();
@@ -124,6 +125,28 @@ export function BanUserButton({ userId, isBanned }: { userId: string; isBanned: 
     >
       {isBanned ? <ShieldCheck /> : <Ban />}
       {isBanned ? "Unban" : "Ban"}
+    </Button>
+  );
+}
+
+export function UserPlanButton({ userId, plan }: { userId: string; plan: UserPlan }) {
+  const [pending, startTransition] = React.useTransition();
+  const upgrade = plan !== "plus";
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      disabled={pending}
+      onClick={() =>
+        startTransition(async () => {
+          const result = await setUserPlan(userId, upgrade ? "plus" : "free");
+          if (result.ok) toast.success(result.message);
+          else toast.error(result.error);
+        })
+      }
+    >
+      <Sparkles />
+      {upgrade ? "Upgrade to Plus" : "Move to Free"}
     </Button>
   );
 }

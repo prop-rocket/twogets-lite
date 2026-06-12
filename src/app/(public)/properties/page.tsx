@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { SearchX } from "lucide-react";
+import Link from "next/link";
+import { SearchX, Sparkles } from "lucide-react";
 
 import { PropertyCard } from "@/components/property/property-card";
 import { PropertyFilters } from "@/components/property/property-filters";
@@ -58,13 +59,22 @@ export default async function PropertiesPage({
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-8">
-      <div>
-        <h1 className="font-display text-3xl font-bold">
-          {query.city ? `Homes in ${query.city}` : "Browse homes"}
-        </h1>
-        <p className="text-muted-foreground">
-          {total} verified {total === 1 ? "listing" : "listings"} from trusted owners
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl font-bold">
+            {query.city ? `Homes in ${query.city}` : "Browse homes"}
+          </h1>
+          <p className="text-muted-foreground">
+            {total} verified {total === 1 ? "listing" : "listings"} from trusted owners
+          </p>
+        </div>
+        <Link
+          href="/swipe"
+          className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-secondary px-4 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+        >
+          <Sparkles className="size-3.5" />
+          Prefer swiping? Describe your dream home
+        </Link>
       </div>
 
       <PropertyFilters />

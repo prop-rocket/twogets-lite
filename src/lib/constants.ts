@@ -8,6 +8,7 @@ import type {
   OccupancyPreference,
   PropertyStatus,
   PropertyType,
+  UserPlan,
   VerificationStatus,
 } from "@/types";
 
@@ -98,6 +99,16 @@ export const SORT_OPTIONS = [
 export type SortOption = (typeof SORT_OPTIONS)[number]["value"];
 
 export const PAGE_SIZE = 12;
+
+// Swipe-to-find
+export const FREE_DAILY_RIGHT_SWIPES = 3;
+export const VIEWING_PROMPT_EVERY = 3;
+export const SWIPE_DECK_SIZE = 30;
+
+export const PLAN_LABELS: Record<UserPlan, string> = {
+  free: "Free",
+  plus: "Plus",
+};
 
 export const POPULAR_CITIES = [
   "Bengaluru",

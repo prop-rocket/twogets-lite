@@ -23,6 +23,7 @@
 
 ## Features
 
+- **Swipe to Find** — describe your requirements in plain words ("2 BHK in Indiranagar under ₹35k, pet friendly"); a rule-based parser turns it into filters shown as editable chips, and matching verified homes are dealt as swipeable cards. Right = shortlist (mirrors into Saved), left = skip (never shown again). Every 3rd right swipe prompts to schedule viewings; the free plan allows 3 new shortlists/day (enforced atomically in Postgres — un-shortlisting refunds the slot), Plus is unlimited. Thin results are topped up with "close match" cards (budget +15%, furnishing relaxed). Owners see live shortlist demand per listing.
 - **Auth** — signup/login/logout, role selection (Tenant / Homeowner), Google OAuth, protected routes via middleware, session refresh.
 - **Tenant module** — rich tenant profile (occupation, employer, income range, bachelor/family, pets, food preference, preferred locations, budget, move-in date), profile completion meter, Aadhaar/PAN verification, LinkedIn, saved properties, viewing requests.
 - **Property discovery** — full-text search, filters (location, BHK, rent range, furnishing, pet friendly, verified owner), sorting, pagination.
@@ -42,6 +43,7 @@ supabase/
     00002_functions_triggers.sql  # auth sync, trust score, review aggregation, audit
     00003_rls.sql                 # row-level security for every table
     00004_storage.sql             # buckets + storage policies
+    00005_swipes_plans.sql        # swipe deck, free/plus plans, daily quota
   seed.sql
 src/
   app/

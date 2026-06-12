@@ -99,9 +99,9 @@ export default async function LandingPage() {
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" variant="accent" className="font-bold">
-                <Link href="/properties">
+                <Link href="/swipe">
                   <Search />
-                  Browse Verified Homes
+                  Swipe to Find Your Home
                 </Link>
               </Button>
               <Button

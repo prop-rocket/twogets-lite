@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, Eye, Plus, Star } from "lucide-react";
+import { Building2, Eye, Heart, Plus, Star } from "lucide-react";
 
 import { ListingActions } from "@/components/listing/listing-actions";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PROPERTY_STATUS_LABELS } from "@/lib/constants";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { formatRent, publicMediaUrl } from "@/lib/utils";
+import { getShortlistCounts } from "@/server/queries";
 import type { PropertyStatus, PropertyWithImages } from "@/types";
 
 export const metadata = { title: "My Listings" };
@@ -36,6 +37,7 @@ export default async function ListingsPage() {
     .order("created_at", { ascending: false });
 
   const properties = (data ?? []) as unknown as PropertyWithImages[];
+  const shortlists = await getShortlistCounts(properties.map((p) => p.id));
 
   return (
     <div className="space-y-6">
@@ -107,6 +109,12 @@ export default async function ListingsPage() {
                         <Eye className="size-3.5" />
                         {property.view_count} views
                       </span>
+                      {(shortlists[property.id] ?? 0) > 0 && (
+                        <span className="inline-flex items-center gap-1 font-medium text-primary">
+                          <Heart className="size-3.5" />
+                          {shortlists[property.id]} shortlisted
+                        </span>
+                      )}
                       <span className="inline-flex items-center gap-1">
                         <Star className="size-3.5" />
                         {Number(property.avg_rating) > 0

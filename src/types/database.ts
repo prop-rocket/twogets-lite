@@ -20,6 +20,8 @@ export type AppointmentStatus = "scheduled" | "completed" | "cancelled" | "no_sh
 export type ReviewType = "owner_review" | "tenant_review";
 export type ReportTarget = "user" | "property" | "review";
 export type ReportStatus = "open" | "resolved" | "dismissed";
+export type SwipeDirection = "left" | "right";
+export type UserPlan = "free" | "plus";
 
 export type UserRow = {
   id: string;
@@ -31,6 +33,7 @@ export type UserRow = {
   is_verified: boolean;
   trust_score: number;
   is_banned: boolean;
+  plan: UserPlan;
   created_at: string;
   updated_at: string;
 };
@@ -204,6 +207,24 @@ export type AuditLogRow = {
   created_at: string;
 };
 
+export type SwipeRow = {
+  id: string;
+  tenant_id: string;
+  property_id: string;
+  direction: SwipeDirection;
+  swiped_at: string;
+  created_at: string;
+};
+
+/** jsonb envelope returned by the record_swipe() database function. */
+export type RecordSwipeResult = {
+  ok: boolean;
+  code?: "auth" | "role" | "banned" | "gone" | "quota";
+  right_today?: number;
+  /** null = unlimited (plus plan) */
+  remaining?: number | null;
+};
+
 type Relationship = {
   foreignKeyName: string;
   columns: string[];
@@ -325,6 +346,12 @@ export type Database = {
       audit_logs: Omit<TableShape<AuditLogRow, "action" | "entity_type" | "entity_id">, "Relationships"> & {
         Relationships: [Rel<"audit_logs_actor_id_fkey", ["actor_id"], "users">];
       };
+      swipes: Omit<TableShape<SwipeRow, "tenant_id" | "property_id" | "direction">, "Relationships"> & {
+        Relationships: [
+          Rel<"swipes_tenant_id_fkey", ["tenant_id"], "users">,
+          Rel<"swipes_property_id_fkey", ["property_id"], "properties">,
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -333,6 +360,12 @@ export type Database = {
       owns_property: { Args: { pid: string }; Returns: boolean };
       recalc_trust_score: { Args: { target: string }; Returns: undefined };
       increment_view_count: { Args: { pid: string }; Returns: undefined };
+      right_swipes_today: { Args: Record<PropertyKey, never>; Returns: number };
+      record_swipe: {
+        Args: { p_property_id: string; p_direction: SwipeDirection };
+        Returns: RecordSwipeResult;
+      };
+      property_right_swipe_count: { Args: { pid: string }; Returns: number };
     };
     Enums: {
       user_role: UserRole;
@@ -349,6 +382,8 @@ export type Database = {
       review_type: ReviewType;
       report_target: ReportTarget;
       report_status: ReportStatus;
+      swipe_direction: SwipeDirection;
+      user_plan: UserPlan;
     };
     CompositeTypes: Record<string, never>;
   };

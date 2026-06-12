@@ -1,4 +1,4 @@
-import { BanUserButton } from "@/components/admin/admin-actions";
+import { BanUserButton, UserPlanButton } from "@/components/admin/admin-actions";
 import { TrustScore } from "@/components/shared/trust-score";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,6 +37,7 @@ export default async function AdminUsersPage() {
             <TableRow>
               <TableHead>User</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Plan</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Trust</TableHead>
               <TableHead>Joined</TableHead>
@@ -60,6 +61,13 @@ export default async function AdminUsersPage() {
                 </TableCell>
                 <TableCell className="capitalize">{user.role ?? "—"}</TableCell>
                 <TableCell>
+                  {(user.plan ?? "free") === "plus" ? (
+                    <Badge variant="accent">Plus</Badge>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">Free</span>
+                  )}
+                </TableCell>
+                <TableCell>
                   <div className="flex flex-wrap gap-1">
                     {user.is_verified && <VerifiedBadge />}
                     {user.is_banned && <Badge variant="destructive">Banned</Badge>}
@@ -73,7 +81,12 @@ export default async function AdminUsersPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   {user.role !== "admin" && (
-                    <BanUserButton userId={user.id} isBanned={user.is_banned} />
+                    <div className="flex justify-end gap-2">
+                      {user.role === "tenant" && (
+                        <UserPlanButton userId={user.id} plan={user.plan ?? "free"} />
+                      )}
+                      <BanUserButton userId={user.id} isBanned={user.is_banned} />
+                    </div>
                   )}
                 </TableCell>
               </TableRow>
