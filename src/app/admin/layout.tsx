@@ -15,12 +15,12 @@ import { getCurrentUser } from "@/lib/supabase/server";
 export const metadata = { title: "Admin" };
 
 const ITEMS: SidebarItem[] = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
-  { href: "/admin/verifications", label: "Verifications", icon: FileCheck2 },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/listings", label: "Listings", icon: Building2 },
-  { href: "/admin/reviews", label: "Reviews", icon: Star },
-  { href: "/admin/reports", label: "Reports", icon: Flag },
+  { href: "/admin", label: "Overview", icon: <LayoutDashboard className="size-4" />, exact: true },
+  { href: "/admin/verifications", label: "Verifications", icon: <FileCheck2 className="size-4" /> },
+  { href: "/admin/users", label: "Users", icon: <Users className="size-4" /> },
+  { href: "/admin/listings", label: "Listings", icon: <Building2 className="size-4" /> },
+  { href: "/admin/reviews", label: "Reviews", icon: <Star className="size-4" /> },
+  { href: "/admin/reports", label: "Reports", icon: <Flag className="size-4" /> },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

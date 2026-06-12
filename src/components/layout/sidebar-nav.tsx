@@ -1,15 +1,15 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 export interface SidebarItem {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon: ReactNode;
   exact?: boolean;
 }
 
@@ -31,7 +31,7 @@ export function SidebarNav({ items }: { items: SidebarItem[] }) {
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            <item.icon className="size-4" />
+            {item.icon}
             {item.label}
           </Link>
         );

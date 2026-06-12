@@ -9,6 +9,7 @@ import {
   Star,
   UserRound,
 } from "lucide-react";
+import type { ReactElement } from "react";
 
 import { SiteHeader } from "@/components/layout/site-header";
 import { SidebarNav, type SidebarItem } from "@/components/layout/sidebar-nav";
@@ -22,15 +23,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (user.role === "admin") redirect("/admin");
 
   const items: SidebarItem[] = [
-    { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
-    { href: "/dashboard/profile", label: "Profile", icon: UserRound },
-    { href: "/dashboard/verification", label: "Verification", icon: ShieldCheck },
+    { href: "/dashboard", label: "Overview", icon: <LayoutDashboard className="size-4" />, exact: true },
+    { href: "/dashboard/profile", label: "Profile", icon: <UserRound className="size-4" /> },
+    { href: "/dashboard/verification", label: "Verification", icon: <ShieldCheck className="size-4" /> },
     ...(user.role === "tenant"
-      ? [{ href: "/dashboard/saved", label: "Saved", icon: Heart }]
-      : [{ href: "/dashboard/listings", label: "My Listings", icon: Building2 }]),
-    { href: "/dashboard/inquiries", label: "Viewing Requests", icon: MessageSquare },
-    { href: "/dashboard/appointments", label: "Appointments", icon: CalendarDays },
-    { href: "/dashboard/reviews", label: "Reviews", icon: Star },
+      ? [{ href: "/dashboard/saved", label: "Saved", icon: <Heart className="size-4" /> as ReactElement }]
+      : [{ href: "/dashboard/listings", label: "My Listings", icon: <Building2 className="size-4" /> as ReactElement }]),
+    { href: "/dashboard/inquiries", label: "Viewing Requests", icon: <MessageSquare className="size-4" /> },
+    { href: "/dashboard/appointments", label: "Appointments", icon: <CalendarDays className="size-4" /> },
+    { href: "/dashboard/reviews", label: "Reviews", icon: <Star className="size-4" /> },
   ];
 
   return (
