@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Advent_Pro } from "next/font/google";
+import { Poppins } from "next/font/google";
 
 import { Toaster } from "@/components/ui/sonner";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
@@ -7,9 +7,9 @@ import { siteUrl } from "@/lib/utils";
 
 import "./globals.css";
 
-const adventPro = Advent_Pro({
+const poppins = Poppins({
   subsets: ["latin"],
-  variable: "--font-advent-pro",
+  variable: "--font-poppins",
   weight: ["400", "500", "600", "700", "800"],
 });
 
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${adventPro.variable} font-sans`}>
+      <body className={`${poppins.variable} font-sans`}>
         {children}
         <Toaster position="top-center" richColors />
       </body>

@@ -9,7 +9,7 @@
  *  Amber Yellow  #FFAB00
  *  Light         #FFFFFF
  *  Dark          #1C1B1F
- *  Type          Advent Pro
+ *  Type          Poppins
  */
 :root {
   --background: #ffffff;
@@ -77,8 +77,8 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-advent-pro), system-ui, sans-serif;
-  --font-display: var(--font-advent-pro), system-ui, sans-serif;
+  --font-sans: var(--font-poppins), system-ui, sans-serif;
+  --font-display: var(--font-poppins), system-ui, sans-serif;
 }
 
 @layer base {
