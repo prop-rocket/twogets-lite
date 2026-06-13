@@ -436,6 +436,43 @@ async function main() {
   const saveRows = demoSaves.map((pi) => ({ tenant_id: demoTenantId, property_id: propIds[pi] }));
   await db.from("saved_properties").upsert(saveRows, { onConflict: "tenant_id,property_id" });
 
+  // ---- swipe demand (requires migration 00005) ----------------------------
+  // Right swipes from other tenants drive the "♥ N shortlisted" signal owners
+  // see, and mirror into each tenant's shortlist. We seed swipes directly
+  // (service role) to bypass the daily quota that record_swipe() enforces.
+  // The demo tenant is intentionally left un-swiped so their deck is full.
+  const { error: swipeProbe } = await db.from("swipes").select("id").limit(1);
+  if (swipeProbe) {
+    console.log("→ Skipping swipe demand (swipes table missing — apply migration 00005)");
+  } else {
+    console.log("→ Seeding swipe demand from tenants");
+    const RIGHTS = {
+      0: ["karthik", "meera", "riya"], 4: ["karthik", "meera"], 8: ["aditya", "riya", "karthik"],
+      10: ["karthik", "meera"], 6: ["aditya", "riya"], 2: ["rohan", "karthik"], 9: ["rohan"],
+      14: ["meera"], 15: ["rohan"], 7: ["aditya"], 17: ["karthik", "riya"], 1: ["meera"],
+    };
+    const LEFTS = {
+      11: ["karthik"], 12: ["karthik"], 3: ["meera"], 5: ["aditya"], 13: ["rohan"], 16: ["riya"],
+    };
+    const swipeRows = [];
+    const mirrorSaves = [];
+    let d = 1;
+    for (const [pi, keys] of Object.entries(RIGHTS)) {
+      for (const k of keys) {
+        swipeRows.push({ tenant_id: tenantId[k], property_id: propIds[pi], direction: "right", swiped_at: isoTimestamp((d++ % 10) + 1) });
+        mirrorSaves.push({ tenant_id: tenantId[k], property_id: propIds[pi] });
+      }
+    }
+    for (const [pi, keys] of Object.entries(LEFTS)) {
+      for (const k of keys) {
+        swipeRows.push({ tenant_id: tenantId[k], property_id: propIds[pi], direction: "left", swiped_at: isoTimestamp((d++ % 10) + 1) });
+      }
+    }
+    const { error: sErr } = await db.from("swipes").upsert(swipeRows, { onConflict: "tenant_id,property_id" });
+    if (sErr) throw new Error(`swipes: ${sErr.message}`);
+    await db.from("saved_properties").upsert(mirrorSaves, { onConflict: "tenant_id,property_id" });
+  }
+
   // summary
   console.log("\n========== SEED COMPLETE ==========");
   const counts = {};
