@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -34,6 +34,11 @@ export const metadata: Metadata = {
     title: `${APP_NAME} — Verified Home Rentals, Instantly`,
     description: APP_TAGLINE,
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -89,7 +89,7 @@ export default async function LandingPage() {
               <Sparkles className="size-4" />
               Trust-first rental marketplace
             </Badge>
-            <h1 className="font-display text-5xl font-bold leading-[1.05] md:text-6xl">
+            <h1 className="font-display text-4xl font-bold leading-[1.05] sm:text-5xl md:text-6xl">
               Home rental made instant.
               <span className="block text-accent">Get your place, get moving.</span>
             </h1>

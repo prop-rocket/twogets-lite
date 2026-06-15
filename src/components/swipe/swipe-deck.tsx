@@ -206,7 +206,10 @@ export function SwipeDeck({ initialCards, initialRemaining, isTenant, signedIn, 
       )}
 
       {/* the stack */}
-      <div className="relative h-[520px] select-none" style={{ touchAction: "pan-y" }}>
+      <div
+        className="relative h-[clamp(360px,58svh,520px)] select-none"
+        style={{ touchAction: "pan-y" }}
+      >
         {cards
           .slice(0, 3)
           .map((card, i) => (
