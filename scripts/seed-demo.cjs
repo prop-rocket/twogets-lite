@@ -300,10 +300,83 @@ async function main() {
     process.stdout.write(`  ✓ ${i + 1}/${PROPS.length} ${p.title}\n`);
   }
 
-  // index of active properties only (for inquiries/reviews/saves)
+  // index of active properties only (for slots/reviews/saves)
   const activeIdx = PROPS.map((p, i) => (p.status === "active" ? i : -1)).filter((i) => i >= 0);
 
-  console.log("→ Building review history (inquiry → appointment → review)");
+  const tid = (k) => (k === "demoT" ? demoTenantId : tenantId[k]);
+  const propOwner = (pi) => ownerId[PROPS[pi].o];
+
+  // IST wall-clock (HH:MM) on a day offset → UTC ISO timestamp (slots store UTC).
+  const slotISO = (daysFromNow, hhmm) =>
+    new Date(`${isoDate(daysFromNow)}T${hhmm}:00+05:30`).toISOString();
+
+  async function addSlot({ pi, start, end, capacity = null, source = "manual", status = "open" }) {
+    const { data, error } = await db
+      .from("viewing_slots")
+      .insert({ listing_id: propIds[pi], owner_id: propOwner(pi), starts_at: start, ends_at: end, capacity, source, status })
+      .select("id")
+      .single();
+    if (error) throw new Error(`slot p${pi}: ${error.message}`);
+    return data.id;
+  }
+  async function addBooking({ slotId, pi, tenantKey, status = "confirmed", party = 1 }) {
+    const { data, error } = await db
+      .from("viewing_bookings")
+      .insert({ slot_id: slotId, listing_id: propIds[pi], tenant_id: tid(tenantKey), status, party_size: party })
+      .select("id")
+      .single();
+    if (error) throw new Error(`booking p${pi}/${tenantKey}: ${error.message}`);
+    return data.id;
+  }
+
+  console.log("→ Publishing recurring availability rules");
+  // A few owners publish weekly availability; generate_slots_for_rule materializes the slots.
+  const RULES = [
+    { pi: 0, days: [6, 0], start: "11:00", end: "13:00", dur: 30, cap: 4 }, // Indiranagar — weekend 30-min slots
+    { pi: 7, days: [6], start: "10:00", end: "12:00", dur: 30, cap: 5 }, // Bandra — Saturday slots
+    { pi: 10, days: [0], start: "16:00", end: "18:00", dur: null, cap: 8 }, // Banjara villa — Sunday open house
+  ];
+  for (const rule of RULES) {
+    for (const dow of rule.days) {
+      const { data: r, error } = await db
+        .from("viewing_availability_rules")
+        .insert({
+          listing_id: propIds[rule.pi], owner_id: propOwner(rule.pi), day_of_week: dow,
+          start_time: rule.start, end_time: rule.end, slot_duration_min: rule.dur, capacity: rule.cap,
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(`rule p${rule.pi}: ${error.message}`);
+      const { error: gErr } = await db.rpc("generate_slots_for_rule", { p_rule_id: r.id });
+      if (gErr) throw new Error(`generate p${rule.pi}: ${gErr.message}`);
+    }
+  }
+
+  console.log("→ Publishing one-off slots + upcoming bookings");
+  // Future one-off slots on every active listing so every home is bookable. Plenty
+  // stay open; a handful are booked so owners see attendees and upcoming counts.
+  const futureSlot = {}; // pi -> [slotId, ...]
+  for (const pi of activeIdx) {
+    futureSlot[pi] = [
+      await addSlot({ pi, start: slotISO(2, "11:00"), end: slotISO(2, "11:30"), capacity: 3 }),
+      await addSlot({ pi, start: slotISO(4, "17:00"), end: slotISO(4, "17:45"), capacity: 2 }),
+      await addSlot({ pi, start: slotISO(6, "12:00"), end: slotISO(6, "13:00"), capacity: null }),
+    ];
+  }
+
+  const UPCOMING_BOOKINGS = [
+    { pi: 0, t: "karthik", slot: 0 }, { pi: 0, t: "meera", slot: 0 },
+    { pi: 8, t: "riya", slot: 1 }, { pi: 8, t: "aditya", slot: 0 },
+    { pi: 10, t: "karthik", slot: 2 }, { pi: 4, t: "meera", slot: 1 },
+    { pi: 7, t: "aditya", slot: 0 }, { pi: 15, t: "rohan", slot: 2 },
+  ];
+  for (const b of UPCOMING_BOOKINGS) {
+    await addBooking({ slotId: futureSlot[b.pi][b.slot], pi: b.pi, tenantKey: b.t });
+  }
+  // Demo tenant: one confirmed upcoming booking so "My viewings" isn't empty.
+  await addBooking({ slotId: futureSlot[6][0], pi: 6, tenantKey: "demoT" });
+
+  console.log("→ Building review history (attended viewings → reviews)");
   // owner_review chains: tenant reviews the owner of a property
   const REVIEW_CHAINS = [
     { t: "karthik", p: 0, comm: 5, dep: 5, acc: 5, days: 40, c: "Rajesh was incredibly responsive and the flat was exactly as pictured. Smooth move-in, deposit terms were fair." },
@@ -329,43 +402,28 @@ async function main() {
     { p: 14, t: "meera", comm: 5, rel: 5, care: 5, days: 14, c: "Meera and her pup were perfect residents. Spotless handover." },
   ];
 
-  const tid = (k) => (k === "demoT" ? demoTenantId : tenantId[k]);
-  // map property index -> owner id
-  const propOwner = (pi) => ownerId[PROPS[pi].o];
-
-  // Create accepted inquiry + completed appointment for each reviewed (tenant,property) pair,
-  // reused across both review directions.
-  const apptByPair = {};
-  async function ensureAppointment(pi, tenantKey, daysAgo) {
+  // Each reviewed (tenant, property) pair = a past slot + an attended booking,
+  // reused across both review directions (owner↔tenant).
+  const bookingByPair = {};
+  async function ensureAttendedBooking(pi, tenantKey, daysAgo) {
     const key = `${pi}:${tenantKey}`;
-    if (apptByPair[key]) return apptByPair[key];
-    const propertyId = propIds[pi];
-    const owner = propOwner(pi);
-    const tenant = tid(tenantKey);
-    const dDate = isoDate(-daysAgo);
-    const dTime = rid(["10:00", "11:30", "16:00", "17:30", "18:00"]);
-    const { data: inq, error: iErr } = await db.from("inquiries").insert({
-      property_id: propertyId, tenant_id: tenant, owner_id: owner,
-      message: "Hi, I'd love to see this place — is it still available?",
-      preferred_date: dDate, preferred_time: dTime, status: "accepted",
-      responded_at: isoTimestamp(daysAgo + 1), created_at: isoTimestamp(daysAgo + 2),
-    }).select("id").single();
-    if (iErr) throw new Error(`inquiry ${key}: ${iErr.message}`);
-    const { data: appt, error: aErr } = await db.from("appointments").insert({
-      inquiry_id: inq.id, property_id: propertyId, tenant_id: tenant, owner_id: owner,
-      scheduled_date: dDate, scheduled_time: dTime, status: "completed",
-      notes: "Viewing completed.", created_at: isoTimestamp(daysAgo + 1),
-    }).select("id").single();
-    if (aErr) throw new Error(`appointment ${key}: ${aErr.message}`);
-    apptByPair[key] = appt.id;
-    return appt.id;
+    if (bookingByPair[key]) return bookingByPair[key];
+    const slotId = await addSlot({
+      pi,
+      start: slotISO(-daysAgo, "11:00"),
+      end: slotISO(-daysAgo, "11:30"),
+      capacity: 4,
+    });
+    const bookingId = await addBooking({ slotId, pi, tenantKey, status: "attended" });
+    bookingByPair[key] = bookingId;
+    return bookingId;
   }
 
   for (const r of REVIEW_CHAINS) {
-    const apptId = await ensureAppointment(r.p, r.t, r.days);
+    const bookingId = await ensureAttendedBooking(r.p, r.t, r.days);
     const overall = Number(((r.comm + r.dep + r.acc) / 3).toFixed(2));
     const { error } = await db.from("reviews").insert({
-      review_type: "owner_review", appointment_id: apptId, property_id: propIds[r.p],
+      review_type: "owner_review", booking_id: bookingId, property_id: propIds[r.p],
       reviewer_id: tid(r.t), reviewee_id: propOwner(r.p), rating_communication: r.comm,
       rating_deposit_fairness: r.dep, rating_property_accuracy: r.acc, overall_rating: overall,
       comment: r.c, created_at: isoTimestamp(r.days),
@@ -373,62 +431,15 @@ async function main() {
     if (error) throw new Error(`owner_review p${r.p}/${r.t}: ${error.message}`);
   }
   for (const r of TENANT_REVIEWS) {
-    const apptId = await ensureAppointment(r.p, r.t, r.days);
+    const bookingId = await ensureAttendedBooking(r.p, r.t, r.days);
     const overall = Number(((r.comm + r.rel + r.care) / 3).toFixed(2));
     const { error } = await db.from("reviews").insert({
-      review_type: "tenant_review", appointment_id: apptId, property_id: null,
+      review_type: "tenant_review", booking_id: bookingId, property_id: null,
       reviewer_id: propOwner(r.p), reviewee_id: tid(r.t), rating_communication: r.comm,
       rating_reliability: r.rel, rating_property_care: r.care, overall_rating: overall,
       comment: r.c, created_at: isoTimestamp(r.days),
     });
     if (error) throw new Error(`tenant_review p${r.p}/${r.t}: ${error.message}`);
-  }
-
-  console.log("→ Adding live pending inquiries");
-  const PENDING = [
-    { p: 1, t: "karthik", days: 1 }, { p: 5, t: "meera", days: 2 }, { p: 12, t: "riya", days: 1 },
-    { p: 9, t: "rohan", days: 3 }, { p: 13, t: "riya", days: 2 }, { p: 16, t: "rohan", days: 1 },
-    { p: 2, t: "demoT", days: 1 },
-  ];
-  for (const q of PENDING) {
-    const dDate = isoDate(rid([3, 5, 7, 9]));
-    const dTime = rid(["10:30", "12:00", "15:00", "17:00", "18:30"]);
-    const { error } = await db.from("inquiries").insert({
-      property_id: propIds[q.p], tenant_id: tid(q.t), owner_id: propOwner(q.p),
-      message: rid([
-        "Hi! Is this available from next month? I'd like to schedule a viewing.",
-        "Interested in this place — could I visit this weekend?",
-        "Looks great. Is the rent negotiable for a 12-month lease?",
-        "Hello, I'm relocating soon and would love to see this home.",
-      ]),
-      preferred_date: dDate, preferred_time: dTime, status: "pending", created_at: isoTimestamp(q.days),
-    });
-    if (error && error.code !== "23505") throw new Error(`pending p${q.p}/${q.t}: ${error.message}`);
-  }
-
-  console.log("→ Adding upcoming (scheduled) viewings");
-  const UPCOMING = [
-    { p: 3, t: "meera", days: 4 }, { p: 6, t: "demoT", days: 2 }, { p: 11, t: "karthik", days: 5 },
-  ];
-  for (const u of UPCOMING) {
-    const propertyId = propIds[u.p];
-    const owner = propOwner(u.p);
-    const tenant = tid(u.t);
-    const dDate = isoDate(u.days);
-    const dTime = rid(["11:00", "16:30", "18:00"]);
-    const { data: inq, error: iErr } = await db.from("inquiries").insert({
-      property_id: propertyId, tenant_id: tenant, owner_id: owner,
-      message: "Confirmed — see you then!", preferred_date: dDate, preferred_time: dTime,
-      status: "accepted", responded_at: isoTimestamp(1), created_at: isoTimestamp(2),
-    }).select("id").single();
-    if (iErr && iErr.code !== "23505") throw new Error(`upcoming inquiry p${u.p}: ${iErr.message}`);
-    if (inq) {
-      const { error: aErr } = await db.from("appointments").insert({
-        inquiry_id: inq.id, property_id: propertyId, tenant_id: tenant, owner_id: owner,
-        scheduled_date: dDate, scheduled_time: dTime, status: "scheduled",
-      });
-      if (aErr) throw new Error(`upcoming appt p${u.p}: ${aErr.message}`);
-    }
   }
 
   console.log("→ Shortlisting properties for the demo tenant");
@@ -476,7 +487,7 @@ async function main() {
   // summary
   console.log("\n========== SEED COMPLETE ==========");
   const counts = {};
-  for (const tbl of ["users", "properties", "property_images", "reviews", "inquiries", "appointments", "saved_properties"]) {
+  for (const tbl of ["users", "properties", "property_images", "reviews", "viewing_slots", "viewing_bookings", "saved_properties"]) {
     const { count } = await db.from(tbl).select("*", { count: "exact", head: true });
     counts[tbl] = count;
   }

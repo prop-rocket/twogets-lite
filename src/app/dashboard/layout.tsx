@@ -4,7 +4,6 @@ import {
   CalendarDays,
   Heart,
   LayoutDashboard,
-  MessageSquare,
   ShieldCheck,
   Star,
   UserRound,
@@ -29,8 +28,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     ...(user.role === "tenant"
       ? [{ href: "/dashboard/saved", label: "Saved", icon: <Heart className="size-4" /> as ReactElement }]
       : [{ href: "/dashboard/listings", label: "My Listings", icon: <Building2 className="size-4" /> as ReactElement }]),
-    { href: "/dashboard/inquiries", label: "Viewing Requests", icon: <MessageSquare className="size-4" /> },
-    { href: "/dashboard/appointments", label: "Appointments", icon: <CalendarDays className="size-4" /> },
+    {
+      href: "/dashboard/viewings",
+      label: user.role === "homeowner" ? "Viewings" : "My Viewings",
+      icon: <CalendarDays className="size-4" />,
+    },
     { href: "/dashboard/reviews", label: "Reviews", icon: <Star className="size-4" /> },
   ];
 

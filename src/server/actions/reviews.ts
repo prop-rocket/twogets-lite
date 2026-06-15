@@ -11,7 +11,7 @@ export async function submitReview(formData: FormData): Promise<ActionResult> {
   if (!user) return { ok: false, error: "Sign in first" };
 
   const parsed = reviewSchema.safeParse({
-    appointmentId: formData.get("appointmentId"),
+    bookingId: formData.get("bookingId"),
     reviewType: formData.get("reviewType"),
     ratingCommunication: formData.get("ratingCommunication"),
     ratingDepositFairness: formData.get("ratingDepositFairness") || undefined,
@@ -26,18 +26,19 @@ export async function submitReview(formData: FormData): Promise<ActionResult> {
   const d = parsed.data;
 
   const supabase = await createClient();
-  const { data: appointment } = await supabase
-    .from("appointments")
-    .select("id, property_id, tenant_id, owner_id, status")
-    .eq("id", d.appointmentId)
+  const { data: booking } = await supabase
+    .from("viewing_bookings")
+    .select("id, listing_id, tenant_id, status, slot:viewing_slots!viewing_bookings_slot_id_fkey(owner_id)")
+    .eq("id", d.bookingId)
     .single();
-  if (!appointment) return { ok: false, error: "Appointment not found" };
-  if (appointment.status !== "completed") {
-    return { ok: false, error: "You can review after the viewing is completed" };
+  if (!booking) return { ok: false, error: "Viewing not found" };
+  if (booking.status !== "attended") {
+    return { ok: false, error: "You can review once the owner marks the viewing attended" };
   }
 
-  const isTenant = appointment.tenant_id === user.id;
-  const isOwner = appointment.owner_id === user.id;
+  const ownerId = (booking.slot as unknown as { owner_id: string } | null)?.owner_id;
+  const isTenant = booking.tenant_id === user.id;
+  const isOwner = ownerId === user.id;
   if (!isTenant && !isOwner) return { ok: false, error: "You were not part of this viewing" };
 
   // Tenants review the owner (owner_review); owners review the tenant.
@@ -55,10 +56,10 @@ export async function submitReview(formData: FormData): Promise<ActionResult> {
 
   const { error } = await supabase.from("reviews").insert({
     review_type: expectedType,
-    appointment_id: appointment.id,
-    property_id: expectedType === "owner_review" ? appointment.property_id : null,
+    booking_id: booking.id,
+    property_id: expectedType === "owner_review" ? booking.listing_id : null,
     reviewer_id: user.id,
-    reviewee_id: isTenant ? appointment.owner_id : appointment.tenant_id,
+    reviewee_id: isTenant ? ownerId! : booking.tenant_id,
     rating_communication: d.ratingCommunication,
     rating_deposit_fairness: expectedType === "owner_review" ? d.ratingDepositFairness : null,
     rating_property_accuracy: expectedType === "owner_review" ? d.ratingPropertyAccuracy : null,
@@ -73,7 +74,8 @@ export async function submitReview(formData: FormData): Promise<ActionResult> {
   }
 
   revalidatePath("/dashboard/reviews");
-  if (appointment.property_id) revalidatePath(`/properties/${appointment.property_id}`);
+  revalidatePath("/dashboard/viewings");
+  if (expectedType === "owner_review") revalidatePath(`/properties/${booking.listing_id}`);
   return { ok: true, message: "Review published" };
 }
 

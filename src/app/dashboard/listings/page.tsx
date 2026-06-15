@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, Eye, Heart, Plus, Star } from "lucide-react";
+import { Building2, CalendarClock, Eye, Heart, Plus, Star } from "lucide-react";
 
 import { ListingActions } from "@/components/listing/listing-actions";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -123,7 +123,15 @@ export default async function ListingsPage() {
                       </span>
                     </p>
                   </div>
-                  <ListingActions propertyId={property.id} status={property.status} />
+                  <div className="flex items-center gap-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/dashboard/listings/${property.id}/viewings`}>
+                        <CalendarClock className="size-4" />
+                        Viewings
+                      </Link>
+                    </Button>
+                    <ListingActions propertyId={property.id} status={property.status} />
+                  </div>
                 </CardContent>
               </Card>
             );

@@ -30,6 +30,36 @@ export function formatTime(value: string) {
   return d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
 }
 
+// Viewing slots are stored as UTC timestamptz; TwoGets' market is IST, so we
+// always present slot times in Asia/Kolkata regardless of the viewer's clock.
+const IST = "Asia/Kolkata";
+
+export function formatSlotDay(iso: string) {
+  return new Date(iso).toLocaleDateString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: IST,
+  });
+}
+
+export function formatSlotTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: IST,
+  });
+}
+
+export function formatSlotRange(startIso: string, endIso: string) {
+  return `${formatSlotTime(startIso)} – ${formatSlotTime(endIso)}`;
+}
+
+/** IST calendar day (YYYY-MM-DD) for grouping slots under day headers. */
+export function istDayKey(iso: string) {
+  return new Date(iso).toLocaleDateString("en-CA", { timeZone: IST });
+}
+
 export function initials(name: string) {
   return (
     name

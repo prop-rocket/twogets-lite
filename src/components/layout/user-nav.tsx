@@ -7,7 +7,6 @@ import {
   Heart,
   LayoutDashboard,
   LogOut,
-  MessageSquare,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -34,19 +33,16 @@ export function UserNav({ user }: { user: UserRow }) {
     ...(user.role === "tenant"
       ? [
           { href: "/dashboard/saved", label: "Saved Properties", icon: Heart },
-          { href: "/dashboard/inquiries", label: "Viewing Requests", icon: MessageSquare },
+          { href: "/dashboard/viewings", label: "My Viewings", icon: CalendarDays },
         ]
       : []),
     ...(user.role === "homeowner"
       ? [
           { href: "/dashboard/listings", label: "My Listings", icon: Building2 },
-          { href: "/dashboard/inquiries", label: "Viewing Requests", icon: MessageSquare },
+          { href: "/dashboard/viewings", label: "Viewings", icon: CalendarDays },
         ]
       : []),
-    ...(user.role === "admin"
-      ? [{ href: "/admin", label: "Admin Panel", icon: ShieldCheck }]
-      : []),
-    { href: "/dashboard/appointments", label: "Appointments", icon: CalendarDays },
+    ...(user.role === "admin" ? [{ href: "/admin", label: "Admin Panel", icon: ShieldCheck }] : []),
   ];
 
   return (

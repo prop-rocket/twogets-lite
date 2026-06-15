@@ -1,14 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  ArrowRight,
-  Building2,
-  CalendarDays,
-  Eye,
-  Heart,
-  MessageSquare,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowRight, Building2, CalendarDays, Eye, Heart, ShieldCheck } from "lucide-react";
 
 import { TrustScore } from "@/components/shared/trust-score";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
@@ -55,21 +47,19 @@ export default async function DashboardPage() {
   const supabase = await createClient();
 
   if (user.role === "tenant") {
-    const [{ data: profile }, { count: savedCount }, { count: inquiryCount }, { count: upcomingCount }] =
-      await Promise.all([
-        supabase.from("tenant_profiles").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("saved_properties").select("*", { count: "exact", head: true }).eq("tenant_id", user.id),
-        supabase
-          .from("inquiries")
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", user.id)
-          .eq("status", "pending"),
-        supabase
-          .from("appointments")
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", user.id)
-          .eq("status", "scheduled"),
-      ]);
+    const [{ data: profile }, { count: savedCount }, { data: bookings }] = await Promise.all([
+      supabase.from("tenant_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+      supabase.from("saved_properties").select("*", { count: "exact", head: true }).eq("tenant_id", user.id),
+      supabase
+        .from("viewing_bookings")
+        .select("id, slot:viewing_slots!viewing_bookings_slot_id_fkey(starts_at)")
+        .eq("tenant_id", user.id)
+        .eq("status", "confirmed"),
+    ]);
+
+    const upcomingCount = (bookings ?? []).filter(
+      (b) => new Date((b.slot as unknown as { starts_at: string }).starts_at) > new Date(),
+    ).length;
 
     const completion = await tenantProfileCompletion(profile ?? null, user.phone);
 
@@ -88,19 +78,13 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <StatCard title="Saved homes" value={savedCount ?? 0} icon={Heart} href="/dashboard/saved" />
           <StatCard
-            title="Pending requests"
-            value={inquiryCount ?? 0}
-            icon={MessageSquare}
-            href="/dashboard/inquiries"
-          />
-          <StatCard
             title="Upcoming viewings"
-            value={upcomingCount ?? 0}
+            value={upcomingCount}
             icon={CalendarDays}
-            href="/dashboard/appointments"
+            href="/dashboard/viewings"
           />
         </div>
 
@@ -149,7 +133,7 @@ export default async function DashboardPage() {
   }
 
   // Homeowner dashboard
-  const [{ count: listingCount }, { count: activeCount }, { count: pendingInquiries }, { data: viewsData }] =
+  const [{ count: listingCount }, { count: activeCount }, { data: futureSlots }, { data: viewsData }] =
     await Promise.all([
       supabase.from("properties").select("*", { count: "exact", head: true }).eq("owner_id", user.id),
       supabase
@@ -158,12 +142,24 @@ export default async function DashboardPage() {
         .eq("owner_id", user.id)
         .eq("status", "active"),
       supabase
-        .from("inquiries")
-        .select("*", { count: "exact", head: true })
+        .from("viewing_slots")
+        .select("id")
         .eq("owner_id", user.id)
-        .eq("status", "pending"),
+        .eq("status", "open")
+        .gt("starts_at", new Date().toISOString()),
       supabase.from("properties").select("view_count").eq("owner_id", user.id),
     ]);
+
+  const slotIds = (futureSlots ?? []).map((s) => s.id);
+  let upcomingViewings = 0;
+  if (slotIds.length) {
+    const { count } = await supabase
+      .from("viewing_bookings")
+      .select("*", { count: "exact", head: true })
+      .in("slot_id", slotIds)
+      .eq("status", "confirmed");
+    upcomingViewings = count ?? 0;
+  }
 
   const totalViews = (viewsData ?? []).reduce((sum, p) => sum + p.view_count, 0);
 
@@ -186,10 +182,10 @@ export default async function DashboardPage() {
         <StatCard title="Total listings" value={listingCount ?? 0} icon={Building2} href="/dashboard/listings" />
         <StatCard title="Live listings" value={activeCount ?? 0} icon={Building2} href="/dashboard/listings" />
         <StatCard
-          title="Pending requests"
-          value={pendingInquiries ?? 0}
-          icon={MessageSquare}
-          href="/dashboard/inquiries"
+          title="Upcoming viewings"
+          value={upcomingViewings}
+          icon={CalendarDays}
+          href="/dashboard/viewings"
         />
         <StatCard title="Total views" value={totalViews} icon={Eye} href="/dashboard/listings" />
       </div>

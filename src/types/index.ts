@@ -1,11 +1,12 @@
 import type {
-  AppointmentRow,
-  InquiryRow,
   PropertyImageRow,
   PropertyRow,
   ReviewRow,
   UserRow,
   VerificationRequestRow,
+  ViewingBookingRow,
+  ViewingBookingStatus,
+  ViewingSlotWithCountsRow,
 } from "./database";
 
 export * from "./database";
@@ -34,15 +35,32 @@ export type PropertyDetails = PropertyWithImages & {
   property_amenities: { amenity: { id: number; slug: string; label: string; icon: string } }[];
 };
 
-export type InquiryWithRelations = InquiryRow & {
-  property: Pick<PropertyRow, "id" | "title" | "locality" | "city" | "rent">;
-  tenant: PublicUser;
-  owner: PublicUser;
+// ---------------------------------------------------------------------------
+// Viewing slots & bookings (owner-published availability model)
+// ---------------------------------------------------------------------------
+
+/** A bookable slot plus the current tenant's own booking on it (if any). */
+export type TenantSlot = ViewingSlotWithCountsRow & {
+  my_booking: { id: string; status: ViewingBookingStatus } | null;
 };
 
-export type AppointmentWithRelations = AppointmentRow & {
-  property: Pick<PropertyRow, "id" | "title" | "locality" | "city">;
+/** One attendee on an owner's slot. */
+export type BookingAttendee = Pick<
+  ViewingBookingRow,
+  "id" | "status" | "party_size" | "note" | "tenant_id"
+> & {
   tenant: PublicUser;
+};
+
+/** A slot from the owner's perspective: counts + who's coming. */
+export type OwnerSlot = ViewingSlotWithCountsRow & {
+  attendees: BookingAttendee[];
+};
+
+/** A tenant's booking joined to its slot and property (the "My viewings" list). */
+export type TenantBooking = ViewingBookingRow & {
+  slot: Pick<ViewingSlotWithCountsRow, "id" | "starts_at" | "ends_at" | "status" | "capacity">;
+  property: Pick<PropertyRow, "id" | "title" | "locality" | "city">;
   owner: PublicUser;
 };
 

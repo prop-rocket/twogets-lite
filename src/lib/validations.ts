@@ -88,20 +88,47 @@ export const propertySchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Inquiries & appointments
+// Viewing slots & bookings (owner-published availability)
 // ---------------------------------------------------------------------------
-export const inquirySchema = z.object({
-  propertyId: z.string().uuid(),
-  message: z.string().trim().max(1000),
-  preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date"),
-  preferredTime: z.string().regex(/^\d{2}:\d{2}$/, "Pick a time"),
-});
+const timeOfDay = z.string().regex(/^\d{2}:\d{2}$/, "Pick a time");
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date");
+// Optional split into sub-slots; null/absent => one open-house slot for the window.
+const slotDuration = z.coerce.number().int().min(15).max(480).optional();
+const capacity = z.coerce.number().int().min(1).max(500).optional();
 
-export const appointmentUpdateSchema = z.object({
-  appointmentId: z.string().uuid(),
-  status: z.enum(["scheduled", "completed", "cancelled", "no_show"]),
-  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  scheduledTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+export const oneOffSlotSchema = z
+  .object({
+    propertyId: z.string().uuid(),
+    date: isoDate,
+    startTime: timeOfDay,
+    endTime: timeOfDay,
+    slotDurationMin: slotDuration,
+    capacity,
+  })
+  .refine((d) => d.endTime > d.startTime, {
+    message: "End time must be after start time",
+    path: ["endTime"],
+  });
+
+export const recurringRuleSchema = z
+  .object({
+    propertyId: z.string().uuid(),
+    daysOfWeek: z.array(z.coerce.number().int().min(0).max(6)).min(1, "Pick at least one day"),
+    startTime: timeOfDay,
+    endTime: timeOfDay,
+    slotDurationMin: slotDuration,
+    capacity,
+    validUntil: isoDate.optional().or(z.literal("")),
+  })
+  .refine((d) => d.endTime > d.startTime, {
+    message: "End time must be after start time",
+    path: ["endTime"],
+  });
+
+export const bookSlotSchema = z.object({
+  slotId: z.string().uuid(),
+  partySize: z.coerce.number().int().min(1).max(10).default(1),
+  note: z.string().trim().max(1000).optional().or(z.literal("")),
 });
 
 // ---------------------------------------------------------------------------
@@ -110,7 +137,7 @@ export const appointmentUpdateSchema = z.object({
 const ratingValue = z.coerce.number().int().min(1).max(5);
 
 export const reviewSchema = z.object({
-  appointmentId: z.string().uuid(),
+  bookingId: z.string().uuid(),
   reviewType: z.enum(["owner_review", "tenant_review"]),
   ratingCommunication: ratingValue,
   ratingDepositFairness: ratingValue.optional(),

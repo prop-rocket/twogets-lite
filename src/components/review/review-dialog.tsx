@@ -55,11 +55,11 @@ function StarInput({ name, label }: { name: string; label: string }) {
 }
 
 export function ReviewDialog({
-  appointmentId,
+  bookingId,
   reviewType,
   revieweeName,
 }: {
-  appointmentId: string;
+  bookingId: string;
   reviewType: ReviewType;
   revieweeName: string;
 }) {
@@ -104,7 +104,7 @@ export function ReviewDialog({
           </DialogDescription>
         </DialogHeader>
         <form action={action} className="space-y-4">
-          <input type="hidden" name="appointmentId" value={appointmentId} />
+          <input type="hidden" name="bookingId" value={bookingId} />
           <input type="hidden" name="reviewType" value={reviewType} />
           <div className="space-y-3">
             {dimensions.map((dim) => (

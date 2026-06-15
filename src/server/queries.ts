@@ -3,7 +3,20 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { FREE_DAILY_RIGHT_SWIPES, PAGE_SIZE, SWIPE_DECK_SIZE, type SortOption } from "@/lib/constants";
 import type { ParsedSearch } from "@/lib/nl-search";
-import type { PropertyDetails, PropertyListItem, ReviewWithReviewer, SwipeCardItem, UserRow } from "@/types";
+import type {
+  BookingAttendee,
+  OwnerSlot,
+  PropertyDetails,
+  PropertyListItem,
+  PropertyRow,
+  ReviewWithReviewer,
+  SwipeCardItem,
+  TenantBooking,
+  TenantSlot,
+  UserRow,
+  ViewingAvailabilityRuleRow,
+  ViewingSlotWithCountsRow,
+} from "@/types";
 
 export interface PropertySearchParams {
   q?: string;
@@ -249,6 +262,174 @@ export async function getSwipeDeck(
     close_match: true,
   }));
   return [...cards, ...closeMatches];
+}
+
+// ---------------------------------------------------------------------------
+// Viewing slots & bookings (owner-published availability)
+// ---------------------------------------------------------------------------
+
+const ATTENDEE_SELECT =
+  "id, slot_id, status, party_size, note, tenant_id, tenant:users!viewing_bookings_tenant_id_fkey(id, full_name, avatar_url, is_verified, trust_score, role, created_at)";
+
+/** Open, future slots for a listing + the current tenant's own booking on each. */
+export async function getOpenSlots(propertyId: string, userId?: string): Promise<TenantSlot[]> {
+  const supabase = await createClient();
+  const { data: slots, error } = await supabase
+    .from("viewing_slots_with_counts")
+    .select("*")
+    .eq("listing_id", propertyId)
+    .eq("status", "open")
+    .gt("starts_at", new Date().toISOString())
+    .order("starts_at", { ascending: true });
+  if (error) {
+    console.error("getOpenSlots:", error.message);
+    return [];
+  }
+
+  const myBookings = new Map<string, { id: string; status: "confirmed" }>();
+  if (userId) {
+    const { data: bk } = await supabase
+      .from("viewing_bookings")
+      .select("id, slot_id, status")
+      .eq("tenant_id", userId)
+      .eq("listing_id", propertyId)
+      .eq("status", "confirmed");
+    for (const b of bk ?? []) myBookings.set(b.slot_id, { id: b.id, status: "confirmed" });
+  }
+
+  return ((slots ?? []) as ViewingSlotWithCountsRow[]).map((s) => ({
+    ...s,
+    my_booking: myBookings.get(s.id) ?? null,
+  }));
+}
+
+/** A tenant's bookings joined to slot + property + owner ("My viewings"). */
+export async function getTenantBookings(userId: string): Promise<TenantBooking[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("viewing_bookings")
+    .select(
+      `id, slot_id, listing_id, tenant_id, status, party_size, note, created_at, updated_at,
+       slot:viewing_slots!viewing_bookings_slot_id_fkey(id, starts_at, ends_at, status, capacity,
+         owner:users!viewing_slots_owner_id_fkey(id, full_name, avatar_url, is_verified, trust_score, role, created_at)),
+       property:properties!viewing_bookings_listing_id_fkey(id, title, locality, city)`,
+    )
+    .eq("tenant_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("getTenantBookings:", error.message);
+    return [];
+  }
+
+  return ((data ?? []) as unknown as Array<Record<string, unknown>>).map((b) => {
+    const slot = b.slot as Record<string, unknown>;
+    return {
+      ...b,
+      owner: slot?.owner,
+      slot: {
+        id: slot?.id,
+        starts_at: slot?.starts_at,
+        ends_at: slot?.ends_at,
+        status: slot?.status,
+        capacity: slot?.capacity,
+      },
+    } as unknown as TenantBooking;
+  });
+}
+
+/** Attach attendees to a set of slots (owner-side). */
+async function attachAttendees(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  slots: ViewingSlotWithCountsRow[],
+): Promise<OwnerSlot[]> {
+  if (!slots.length) return [];
+  const slotIds = slots.map((s) => s.id);
+  const { data: bookings } = await supabase
+    .from("viewing_bookings")
+    .select(ATTENDEE_SELECT)
+    .in("slot_id", slotIds)
+    .in("status", ["confirmed", "attended", "no_show"]);
+
+  const bySlot = new Map<string, BookingAttendee[]>();
+  for (const b of (bookings ?? []) as unknown as Array<Record<string, unknown>>) {
+    const arr = bySlot.get(b.slot_id as string) ?? [];
+    arr.push({
+      id: b.id as string,
+      status: b.status as BookingAttendee["status"],
+      party_size: b.party_size as number,
+      note: (b.note as string | null) ?? null,
+      tenant_id: b.tenant_id as string,
+      tenant: b.tenant as BookingAttendee["tenant"],
+    });
+    bySlot.set(b.slot_id as string, arr);
+  }
+  return slots.map((s) => ({ ...s, attendees: bySlot.get(s.id) ?? [] }));
+}
+
+/** Owner's slots for one listing (recent + upcoming) plus its recurring rules. */
+export async function getListingViewings(
+  propertyId: string,
+): Promise<{ slots: OwnerSlot[]; rules: ViewingAvailabilityRuleRow[] }> {
+  const supabase = await createClient();
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(); // keep last 7 days for attendance/review
+  const [{ data: slots, error }, { data: rules }] = await Promise.all([
+    supabase
+      .from("viewing_slots_with_counts")
+      .select("*")
+      .eq("listing_id", propertyId)
+      .eq("status", "open")
+      .gt("starts_at", since)
+      .order("starts_at", { ascending: true }),
+    supabase
+      .from("viewing_availability_rules")
+      .select("*")
+      .eq("listing_id", propertyId)
+      .eq("active", true)
+      .order("day_of_week", { ascending: true }),
+  ]);
+  if (error) {
+    console.error("getListingViewings:", error.message);
+    return { slots: [], rules: [] };
+  }
+  const withAttendees = await attachAttendees(supabase, (slots ?? []) as ViewingSlotWithCountsRow[]);
+  return { slots: withAttendees, rules: (rules ?? []) as ViewingAvailabilityRuleRow[] };
+}
+
+/** Owner agenda across all listings: upcoming slots grouped by property. */
+export async function getOwnerAgenda(
+  ownerId: string,
+): Promise<{ property: Pick<PropertyRow, "id" | "title" | "locality" | "city">; slots: OwnerSlot[] }[]> {
+  const supabase = await createClient();
+  const { data: slots, error } = await supabase
+    .from("viewing_slots_with_counts")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .eq("status", "open")
+    .gt("starts_at", new Date().toISOString())
+    .order("starts_at", { ascending: true });
+  if (error) {
+    console.error("getOwnerAgenda:", error.message);
+    return [];
+  }
+  const withAttendees = await attachAttendees(supabase, (slots ?? []) as ViewingSlotWithCountsRow[]);
+  if (!withAttendees.length) return [];
+
+  const listingIds = [...new Set(withAttendees.map((s) => s.listing_id))];
+  const { data: props } = await supabase
+    .from("properties")
+    .select("id, title, locality, city")
+    .in("id", listingIds);
+  const propMap = new Map((props ?? []).map((p) => [p.id, p]));
+
+  const groups = new Map<string, { property: Pick<PropertyRow, "id" | "title" | "locality" | "city">; slots: OwnerSlot[] }>();
+  for (const s of withAttendees) {
+    const property = propMap.get(s.listing_id);
+    if (!property) continue;
+    const g = groups.get(s.listing_id) ?? { property, slots: [] };
+    g.slots.push(s);
+    groups.set(s.listing_id, g);
+  }
+  return [...groups.values()];
 }
 
 /** Shortlist demand per property for an owner's listings (id → count). */

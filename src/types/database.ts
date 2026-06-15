@@ -15,8 +15,9 @@ export type OccupancyPreference = "bachelor" | "family" | "any";
 export type FoodPreference = "vegetarian" | "non_vegetarian" | "eggetarian" | "no_preference";
 export type IncomeRange = "below_3l" | "3l_6l" | "6l_12l" | "12l_24l" | "above_24l";
 export type PropertyStatus = "draft" | "active" | "archived" | "rented";
-export type InquiryStatus = "pending" | "accepted" | "rejected" | "cancelled";
-export type AppointmentStatus = "scheduled" | "completed" | "cancelled" | "no_show";
+export type ViewingSlotSource = "manual" | "recurring";
+export type ViewingSlotStatus = "open" | "cancelled";
+export type ViewingBookingStatus = "confirmed" | "cancelled" | "attended" | "no_show";
 export type ReviewType = "owner_review" | "tenant_review";
 export type ReportTarget = "user" | "property" | "review";
 export type ReportStatus = "open" | "resolved" | "dismissed";
@@ -137,30 +138,52 @@ export type SavedPropertyRow = {
   created_at: string;
 };
 
-export type InquiryRow = {
+export type ViewingAvailabilityRuleRow = {
   id: string;
-  property_id: string;
-  tenant_id: string;
+  listing_id: string;
   owner_id: string;
-  message: string;
-  preferred_date: string;
-  preferred_time: string;
-  status: InquiryStatus;
-  responded_at: string | null;
+  day_of_week: number; // 0 = Sunday … 6 = Saturday
+  start_time: string; // HH:MM[:SS]
+  end_time: string;
+  slot_duration_min: number | null; // null => whole window is one open-house slot
+  capacity: number | null; // null => unlimited
+  valid_from: string;
+  valid_until: string | null;
+  timezone: string;
+  active: boolean;
   created_at: string;
   updated_at: string;
 };
 
-export type AppointmentRow = {
+export type ViewingSlotRow = {
   id: string;
-  inquiry_id: string;
-  property_id: string;
-  tenant_id: string;
+  listing_id: string;
   owner_id: string;
-  scheduled_date: string;
-  scheduled_time: string;
-  status: AppointmentStatus;
-  notes: string;
+  rule_id: string | null;
+  starts_at: string; // UTC timestamptz
+  ends_at: string;
+  capacity: number | null;
+  status: ViewingSlotStatus;
+  source: ViewingSlotSource;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Read model: viewing_slots + live booking counts (viewing_slots_with_counts). */
+export type ViewingSlotWithCountsRow = ViewingSlotRow & {
+  going_count: number;
+  spots_left: number | null; // null => unlimited capacity
+  is_full: boolean;
+};
+
+export type ViewingBookingRow = {
+  id: string;
+  slot_id: string;
+  listing_id: string;
+  tenant_id: string;
+  status: ViewingBookingStatus;
+  party_size: number;
+  note: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -168,7 +191,7 @@ export type AppointmentRow = {
 export type ReviewRow = {
   id: string;
   review_type: ReviewType;
-  appointment_id: string;
+  booking_id: string | null;
   property_id: string | null;
   reviewer_id: string;
   reviewee_id: string;
@@ -299,39 +322,44 @@ export type Database = {
           Rel<"saved_properties_property_id_fkey", ["property_id"], "properties">,
         ];
       };
-      inquiries: Omit<
-        TableShape<InquiryRow, "property_id" | "tenant_id" | "owner_id" | "preferred_date" | "preferred_time">,
+      viewing_availability_rules: Omit<
+        TableShape<ViewingAvailabilityRuleRow, "listing_id" | "owner_id" | "day_of_week" | "start_time" | "end_time">,
         "Relationships"
       > & {
         Relationships: [
-          Rel<"inquiries_property_id_fkey", ["property_id"], "properties">,
-          Rel<"inquiries_tenant_id_fkey", ["tenant_id"], "users">,
-          Rel<"inquiries_owner_id_fkey", ["owner_id"], "users">,
+          Rel<"viewing_availability_rules_listing_id_fkey", ["listing_id"], "properties">,
+          Rel<"viewing_availability_rules_owner_id_fkey", ["owner_id"], "users">,
         ];
       };
-      appointments: Omit<
-        TableShape<
-          AppointmentRow,
-          "inquiry_id" | "property_id" | "tenant_id" | "owner_id" | "scheduled_date" | "scheduled_time"
-        >,
+      viewing_slots: Omit<
+        TableShape<ViewingSlotRow, "listing_id" | "owner_id" | "starts_at" | "ends_at" | "source">,
         "Relationships"
       > & {
         Relationships: [
-          Rel<"appointments_inquiry_id_fkey", ["inquiry_id"], "inquiries", true>,
-          Rel<"appointments_property_id_fkey", ["property_id"], "properties">,
-          Rel<"appointments_tenant_id_fkey", ["tenant_id"], "users">,
-          Rel<"appointments_owner_id_fkey", ["owner_id"], "users">,
+          Rel<"viewing_slots_listing_id_fkey", ["listing_id"], "properties">,
+          Rel<"viewing_slots_owner_id_fkey", ["owner_id"], "users">,
+          Rel<"viewing_slots_rule_id_fkey", ["rule_id"], "viewing_availability_rules">,
+        ];
+      };
+      viewing_bookings: Omit<
+        TableShape<ViewingBookingRow, "slot_id" | "listing_id" | "tenant_id">,
+        "Relationships"
+      > & {
+        Relationships: [
+          Rel<"viewing_bookings_slot_id_fkey", ["slot_id"], "viewing_slots">,
+          Rel<"viewing_bookings_listing_id_fkey", ["listing_id"], "properties">,
+          Rel<"viewing_bookings_tenant_id_fkey", ["tenant_id"], "users">,
         ];
       };
       reviews: Omit<
         TableShape<
           ReviewRow,
-          "review_type" | "appointment_id" | "reviewer_id" | "reviewee_id" | "rating_communication" | "overall_rating"
+          "review_type" | "reviewer_id" | "reviewee_id" | "rating_communication" | "overall_rating"
         >,
         "Relationships"
       > & {
         Relationships: [
-          Rel<"reviews_appointment_id_fkey", ["appointment_id"], "appointments">,
+          Rel<"reviews_booking_id_fkey", ["booking_id"], "viewing_bookings">,
           Rel<"reviews_property_id_fkey", ["property_id"], "properties">,
           Rel<"reviews_reviewer_id_fkey", ["reviewer_id"], "users">,
           Rel<"reviews_reviewee_id_fkey", ["reviewee_id"], "users">,
@@ -353,7 +381,12 @@ export type Database = {
         ];
       };
     };
-    Views: Record<string, never>;
+    Views: {
+      viewing_slots_with_counts: {
+        Row: ViewingSlotWithCountsRow;
+        Relationships: [];
+      };
+    };
     Functions: {
       current_user_role: { Args: Record<PropertyKey, never>; Returns: UserRole | null };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
@@ -366,6 +399,17 @@ export type Database = {
         Returns: RecordSwipeResult;
       };
       property_right_swipe_count: { Args: { pid: string }; Returns: number };
+      generate_slots_for_rule: { Args: { p_rule_id: string; p_horizon_days?: number }; Returns: number };
+      book_viewing_slot: {
+        Args: { p_slot_id: string; p_party_size?: number; p_note?: string | null };
+        Returns: ViewingBookingRow;
+      };
+      cancel_viewing_slot: { Args: { p_slot_id: string }; Returns: undefined };
+      set_booking_attendance: {
+        Args: { p_booking_id: string; p_status: ViewingBookingStatus };
+        Returns: undefined;
+      };
+      viewing_slot_going_count: { Args: { p_slot_id: string }; Returns: number };
     };
     Enums: {
       user_role: UserRole;
@@ -377,8 +421,9 @@ export type Database = {
       food_preference: FoodPreference;
       income_range: IncomeRange;
       property_status: PropertyStatus;
-      inquiry_status: InquiryStatus;
-      appointment_status: AppointmentStatus;
+      viewing_slot_source: ViewingSlotSource;
+      viewing_slot_status: ViewingSlotStatus;
+      viewing_booking_status: ViewingBookingStatus;
       review_type: ReviewType;
       report_target: ReportTarget;
       report_status: ReportStatus;

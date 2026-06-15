@@ -1,15 +1,14 @@
 import type {
-  AppointmentStatus,
   DocumentType,
   FoodPreference,
   FurnishedStatus,
   IncomeRange,
-  InquiryStatus,
   OccupancyPreference,
   PropertyStatus,
   PropertyType,
   UserPlan,
   VerificationStatus,
+  ViewingBookingStatus,
 } from "@/types";
 
 export const APP_NAME = "TwoGets";
@@ -75,19 +74,35 @@ export const PROPERTY_STATUS_LABELS: Record<PropertyStatus, string> = {
   rented: "Rented Out",
 };
 
-export const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
-  pending: "Awaiting Response",
-  accepted: "Accepted",
-  rejected: "Declined",
+export const VIEWING_BOOKING_STATUS_LABELS: Record<ViewingBookingStatus, string> = {
+  confirmed: "Confirmed",
   cancelled: "Cancelled",
-};
-
-export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
-  scheduled: "Scheduled",
-  completed: "Completed",
-  cancelled: "Cancelled",
+  attended: "Attended",
   no_show: "No-show",
 };
+
+// Sun-first to match day_of_week (0 = Sunday) used by recurring rules.
+export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+export const WEEKDAY_LABELS_LONG = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
+// Optional split of an availability window into back-to-back sub-slots.
+export const SLOT_DURATION_OPTIONS = [
+  { value: "", label: "One open-house slot (no split)" },
+  { value: "30", label: "30-minute slots" },
+  { value: "45", label: "45-minute slots" },
+  { value: "60", label: "60-minute slots" },
+] as const;
+
+/** Rolling horizon (days) recurring rules materialize slots across. */
+export const VIEWING_HORIZON_DAYS = 28;
 
 export const SORT_OPTIONS = [
   { value: "newest", label: "Newest first" },

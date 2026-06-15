@@ -25,11 +25,11 @@
 
 - **Swipe to Find** — describe your requirements in plain words ("2 BHK in Indiranagar under ₹35k, pet friendly"); a rule-based parser turns it into filters shown as editable chips, and matching verified homes are dealt as swipeable cards. Right = shortlist (mirrors into Saved), left = skip (never shown again). Every 3rd right swipe prompts to schedule viewings; the free plan allows 3 new shortlists/day (enforced atomically in Postgres — un-shortlisting refunds the slot), Plus is unlimited. Thin results are topped up with "close match" cards (budget +15%, furnishing relaxed). Owners see live shortlist demand per listing.
 - **Auth** — signup/login/logout, role selection (Tenant / Homeowner), Google OAuth, protected routes via middleware, session refresh.
-- **Tenant module** — rich tenant profile (occupation, employer, income range, bachelor/family, pets, food preference, preferred locations, budget, move-in date), profile completion meter, Aadhaar/PAN verification, LinkedIn, saved properties, viewing requests.
+- **Tenant module** — rich tenant profile (occupation, employer, income range, bachelor/family, pets, food preference, preferred locations, budget, move-in date), profile completion meter, Aadhaar/PAN verification, LinkedIn, saved properties, booked viewings.
 - **Property discovery** — full-text search, filters (location, BHK, rent range, furnishing, pet friendly, verified owner), sorting, pagination.
-- **Property details** — gallery, amenities, rent & deposit, owner profile with trust score, reviews, request-viewing scheduler.
+- **Property details** — gallery, amenities, rent & deposit, owner profile with trust score, reviews, owner-published viewing slots to book.
 - **Homeowner module** — create/edit/archive/delete listings with photos, video, amenities, lat/lng; ownership verification per property (utility bill / tax receipt / sale deed).
-- **Inquiry system** — tenants request viewings, owners accept/reject; accepting auto-creates an appointment (date/time/status lifecycle).
+- **Viewing slots** — owners publish availability as one-off slots or recurring weekly rules (auto-materialized on a rolling 28-day horizon). Tenants can only book from published, open, future slots — never a custom time. Open house: many tenants per slot with an optional capacity cap, booking is auto-confirmed and atomic (row-locked in Postgres, so the last spot can't be double-booked). Owners cancel slots (releasing attendees) and mark attendance; an attended viewing unlocks the two-way review.
 - **Two-way reviews** — tenants rate owners (communication, deposit fairness, property accuracy); owners rate tenants (communication, reliability, property care). Aggregated into property ratings and user trust scores by DB triggers.
 - **Trust features** — Verified Owner/Tenant/Property badges, 0–100 trust scores, review aggregation — all computed in Postgres.
 - **Admin panel** — verification queue with private-document signed URLs, user ban/unban, listing takedown, review moderation, report triage, audit log.
@@ -44,6 +44,7 @@ supabase/
     00003_rls.sql                 # row-level security for every table
     00004_storage.sql             # buckets + storage policies
     00005_swipes_plans.sql        # swipe deck, free/plus plans, daily quota
+    00006_viewing_slots.sql       # owner-published viewing slots, rules, bookings
   seed.sql
 src/
   app/
@@ -56,7 +57,7 @@ src/
   components/
     ui/                           # shadcn-style primitives
     brand/ layout/ shared/        # logo, header/footer, badges, trust score…
-    property/ listing/ inquiry/ appointment/ review/ verification/ admin/
+    property/ listing/ viewing/ review/ verification/ admin/
   lib/
     supabase/                     # browser / server / middleware / admin clients
     validations.ts                # zod schemas (single source of input truth)

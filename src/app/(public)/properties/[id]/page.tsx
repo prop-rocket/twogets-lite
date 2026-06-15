@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   BedDouble,
+  CalendarCheck,
   CalendarDays,
   Check,
   IndianRupee,
@@ -14,8 +15,8 @@ import {
 } from "lucide-react";
 
 import { PropertyGallery } from "@/components/property/property-gallery";
-import { RequestViewingDialog } from "@/components/property/request-viewing-dialog";
 import { SaveButton } from "@/components/property/save-button";
+import { SlotPicker } from "@/components/viewing/slot-picker";
 import { ReviewCard } from "@/components/review/review-card";
 import { ReportDialog } from "@/components/shared/report-dialog";
 import { StarRating } from "@/components/shared/star-rating";
@@ -33,7 +34,7 @@ import {
 } from "@/lib/constants";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { avatarUrl, formatDate, formatRent, initials } from "@/lib/utils";
-import { getProperty, getPropertyReviews, isPropertySaved } from "@/server/queries";
+import { getOpenSlots, getProperty, getPropertyReviews, isPropertySaved } from "@/server/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -57,9 +58,10 @@ export default async function PropertyDetailsPage({ params }: { params: Params }
   const isOwner = user?.id === property.owner_id;
   if (property.status !== "active" && !isOwner && user?.role !== "admin") notFound();
 
-  const [reviews, saved] = await Promise.all([
+  const [reviews, saved, slots] = await Promise.all([
     getPropertyReviews(property.id),
     user?.role === "tenant" ? isPropertySaved(property.id, user.id) : Promise.resolve(false),
+    isOwner ? Promise.resolve([]) : getOpenSlots(property.id, user?.id),
   ]);
 
   // fire-and-forget view counter
@@ -189,21 +191,26 @@ export default async function PropertyDetailsPage({ params }: { params: Params }
               </div>
 
               {isOwner ? (
-                <Button asChild className="w-full" variant="outline">
-                  <Link href={`/dashboard/listings/${property.id}/edit`}>Edit your listing</Link>
-                </Button>
-              ) : user?.role === "tenant" ? (
-                <RequestViewingDialog propertyId={property.id} />
-              ) : user ? (
-                <p className="text-center text-sm text-muted-foreground">
-                  Sign in with a tenant account to request a viewing.
-                </p>
+                <div className="space-y-2">
+                  <Button asChild className="w-full" variant="outline">
+                    <Link href={`/dashboard/listings/${property.id}/edit`}>Edit your listing</Link>
+                  </Button>
+                  <Button asChild className="w-full" variant="ghost">
+                    <Link href={`/dashboard/listings/${property.id}/viewings`}>Manage viewing times</Link>
+                  </Button>
+                </div>
               ) : (
-                <Button asChild size="lg" className="w-full">
-                  <Link href={`/login?next=/properties/${property.id}`}>
-                    Sign in to request a viewing
-                  </Link>
-                </Button>
+                <div className="space-y-3">
+                  <p className="flex items-center gap-1.5 text-sm font-semibold">
+                    <CalendarCheck className="size-4 text-primary" />
+                    Pick a viewing time
+                  </p>
+                  <SlotPicker
+                    slots={slots}
+                    canBook={user?.role === "tenant"}
+                    loginHref={`/login?next=/properties/${property.id}`}
+                  />
+                </div>
               )}
             </CardContent>
           </Card>
