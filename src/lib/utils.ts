@@ -60,20 +60,17 @@ export function istDayKey(iso: string) {
   return new Date(iso).toLocaleDateString("en-CA", { timeZone: IST });
 }
 
-/** Today's IST calendar day as YYYY-MM-DD (min bound for the tenant date picker). */
-export function istTodayKey() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: IST });
-}
-
-/** Human label for an IST day key (YYYY-MM-DD): "Mon, 16 Jun". */
-export function formatDayKey(key: string) {
+/** Weekday / day / month parts of an IST day key (YYYY-MM-DD) for date chips. */
+export function dayKeyParts(key: string) {
   // Anchor at IST noon so the calendar date never slips across the date line.
-  return new Date(`${key}T12:00:00+05:30`).toLocaleDateString("en-IN", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: IST,
-  });
+  const d = new Date(`${key}T12:00:00+05:30`);
+  const part = (options: Intl.DateTimeFormatOptions) =>
+    d.toLocaleDateString("en-IN", { ...options, timeZone: IST });
+  return {
+    weekday: part({ weekday: "short" }),
+    day: part({ day: "numeric" }),
+    month: part({ month: "short" }),
+  };
 }
 
 export function initials(name: string) {

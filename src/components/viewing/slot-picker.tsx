@@ -2,22 +2,24 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CalendarClock, CalendarX2, Check, Loader2, Users, X } from "lucide-react";
+import { CalendarClock, Check, Loader2, Users, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { bookSlot, cancelBooking } from "@/server/actions/viewings";
-import { VIEWING_HORIZON_DAYS } from "@/lib/constants";
-import { cn, formatDayKey, formatSlotRange, istDayKey, istTodayKey } from "@/lib/utils";
+import { cn, dayKeyParts, formatSlotRange, istDayKey } from "@/lib/utils";
 import type { TenantSlot } from "@/types";
 
+// Only ever surface the next few published dates so the picker stays light;
+// the window rolls forward on its own as past slots drop out of the query.
+const MAX_DATES = 5;
+
 /**
- * Tenant-facing slot picker — date-first. The tenant picks a date (via the
- * date field or an availability chip), then sees the owner's open slots for
- * that day. Dates with no published slots say so explicitly. Booking is
- * one-tap and auto-confirmed (no custom time entry anywhere).
+ * Tenant-facing slot picker — date-first. We show only the dates the owner has
+ * actually published slots for (capped at the next five), preselecting the
+ * earliest. Tapping a date reveals that day's open slots. Booking is one-tap
+ * and auto-confirmed (no custom time entry anywhere).
  */
 export function SlotPicker({
   slots: initialSlots,
@@ -31,10 +33,9 @@ export function SlotPicker({
   const [slots, setSlots] = React.useState(initialSlots);
   const [pendingId, setPendingId] = React.useState<string | null>(null);
 
-  // Days (IST, sorted) that actually have published slots — drives the chips
-  // and the default selection.
-  const availableDays = React.useMemo(
-    () => [...new Set(slots.map((s) => istDayKey(s.starts_at)))].sort(),
+  // The next published dates (IST, sorted, capped) that drive the chips.
+  const days = React.useMemo(
+    () => [...new Set(slots.map((s) => istDayKey(s.starts_at)))].sort().slice(0, MAX_DATES),
     [slots],
   );
 
@@ -43,11 +44,11 @@ export function SlotPicker({
   );
 
   // When the parent hands us a fresh slot set (e.g. switching homes in the
-  // swipe sheet), resync and jump to the first day that has availability.
+  // swipe sheet), resync and jump to the earliest available date.
   React.useEffect(() => {
     setSlots(initialSlots);
-    const days = [...new Set(initialSlots.map((s) => istDayKey(s.starts_at)))].sort();
-    setSelectedDate(days[0] ?? "");
+    const next = [...new Set(initialSlots.map((s) => istDayKey(s.starts_at)))].sort();
+    setSelectedDate(next[0] ?? "");
   }, [initialSlots]);
 
   function patch(slotId: string, fn: (s: TenantSlot) => TenantSlot) {
@@ -101,8 +102,6 @@ export function SlotPicker({
     );
   }
 
-  const today = istTodayKey();
-  const maxDate = istDayKey(new Date(Date.now() + VIEWING_HORIZON_DAYS * 86_400_000).toISOString());
   const daySlots = slots
     .filter((s) => istDayKey(s.starts_at) === selectedDate)
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
@@ -111,49 +110,35 @@ export function SlotPicker({
     <div className="space-y-4">
       {/* Step 1 — pick a date */}
       <div className="space-y-2">
-        <label htmlFor="viewing-date" className="text-sm font-medium">
-          Pick a date
-        </label>
-        <Input
-          id="viewing-date"
-          type="date"
-          value={selectedDate}
-          min={today}
-          max={maxDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-        />
-        {availableDays.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {availableDays.map((day) => (
+        <p className="text-sm font-medium">Pick a date</p>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {days.map((day) => {
+            const parts = dayKeyParts(day);
+            const active = day === selectedDate;
+            return (
               <button
                 key={day}
                 type="button"
                 onClick={() => setSelectedDate(day)}
                 className={cn(
-                  "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                  day === selectedDate
+                  "flex w-16 shrink-0 flex-col items-center rounded-xl border py-2 text-center transition-colors",
+                  active
                     ? "border-primary bg-primary text-primary-foreground"
                     : "hover:border-primary hover:text-primary",
                 )}
               >
-                {formatDayKey(day)}
+                <span className="text-[11px] uppercase opacity-80">{parts.weekday}</span>
+                <span className="text-lg font-semibold leading-tight">{parts.day}</span>
+                <span className="text-[11px] uppercase opacity-80">{parts.month}</span>
               </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
 
       {/* Step 2 — slots for the chosen date */}
-      {!selectedDate ? (
+      {daySlots.length === 0 ? (
         <p className="text-sm text-muted-foreground">Select a date to see available times.</p>
-      ) : daySlots.length === 0 ? (
-        <div className="flex flex-col items-center gap-1 rounded-lg border border-dashed p-5 text-center">
-          <CalendarX2 className="size-5 text-muted-foreground" />
-          <p className="text-sm font-medium">No slots available on this date.</p>
-          <p className="text-xs text-muted-foreground">
-            Try another date{availableDays.length > 0 ? " — tap an available day above." : "."}
-          </p>
-        </div>
       ) : (
         <div className="space-y-2">
           {daySlots.map((slot) => {
