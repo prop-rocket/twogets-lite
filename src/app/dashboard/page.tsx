@@ -57,9 +57,10 @@ export default async function DashboardPage() {
         .eq("status", "confirmed"),
     ]);
 
-    const upcomingCount = (bookings ?? []).filter(
-      (b) => new Date((b.slot as unknown as { starts_at: string }).starts_at) > new Date(),
-    ).length;
+    const upcomingCount = (bookings ?? []).filter((b) => {
+      const startsAt = (b.slot as { starts_at: string } | null)?.starts_at;
+      return startsAt != null && new Date(startsAt) > new Date();
+    }).length;
 
     const completion = await tenantProfileCompletion(profile ?? null, user.phone);
 
