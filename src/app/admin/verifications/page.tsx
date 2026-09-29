@@ -61,7 +61,7 @@ export default async function AdminVerificationsPage() {
             </Badge>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <ViewDocumentButton storagePath={request.storage_path} />
+            <ViewDocumentButton requestId={request.id} />
             {request.status === "pending" && <VerificationReviewActions requestId={request.id} />}
           </div>
           {request.rejection_reason && (

@@ -410,6 +410,15 @@ export type Database = {
         Returns: undefined;
       };
       viewing_slot_going_count: { Args: { p_slot_id: string }; Returns: number };
+      log_admin_action: {
+        Args: {
+          p_action: string;
+          p_entity_type: string;
+          p_entity_id: string;
+          p_metadata?: Record<string, unknown>;
+        };
+        Returns: number;
+      };
     };
     Enums: {
       user_role: UserRole;

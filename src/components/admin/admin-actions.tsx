@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/shared/submit-button";
+import { ConfirmActionDialog } from "@/components/admin/confirm-action-dialog";
 import {
   adminSetListingStatus,
   getDocumentSignedUrl,
@@ -26,7 +27,7 @@ import {
 } from "@/server/actions/admin";
 import type { PropertyStatus, ReportStatus, UserPlan } from "@/types";
 
-export function ViewDocumentButton({ storagePath }: { storagePath: string }) {
+export function ViewDocumentButton({ requestId }: { requestId: string }) {
   const [pending, startTransition] = React.useTransition();
   return (
     <Button
@@ -35,7 +36,7 @@ export function ViewDocumentButton({ storagePath }: { storagePath: string }) {
       disabled={pending}
       onClick={() =>
         startTransition(async () => {
-          const result = await getDocumentSignedUrl(storagePath);
+          const result = await getDocumentSignedUrl(requestId);
           if (result.ok && result.data) window.open(result.data.url, "_blank", "noopener");
           else if (!result.ok) toast.error(result.error);
         })
@@ -110,22 +111,37 @@ export function VerificationReviewActions({ requestId }: { requestId: string }) 
 
 export function BanUserButton({ userId, isBanned }: { userId: string; isBanned: boolean }) {
   const [pending, startTransition] = React.useTransition();
+
+  async function run() {
+    const result = await setUserBanned(userId, !isBanned);
+    if (result.ok) toast.success(result.message);
+    else toast.error(result.error);
+  }
+
+  // Unbanning is recoverable, so it stays one click; banning asks first.
+  if (isBanned) {
+    return (
+      <Button size="sm" variant="outline" disabled={pending} onClick={() => startTransition(run)}>
+        <ShieldCheck />
+        Unban
+      </Button>
+    );
+  }
+
   return (
-    <Button
-      size="sm"
-      variant={isBanned ? "outline" : "destructive"}
-      disabled={pending}
-      onClick={() =>
-        startTransition(async () => {
-          const result = await setUserBanned(userId, !isBanned);
-          if (result.ok) toast.success(result.message);
-          else toast.error(result.error);
-        })
+    <ConfirmActionDialog
+      trigger={
+        <Button size="sm" variant="destructive">
+          <Ban />
+          Ban
+        </Button>
       }
-    >
-      {isBanned ? <ShieldCheck /> : <Ban />}
-      {isBanned ? "Unban" : "Ban"}
-    </Button>
+      title="Ban this user?"
+      description="They'll be locked out of their dashboard. Any listings they own stay published — take those down separately if that's needed."
+      confirmLabel="Ban user"
+      variant="destructive"
+      onConfirm={run}
+    />
   );
 }
 
@@ -160,21 +176,34 @@ export function AdminListingStatusButton({
 }) {
   const [pending, startTransition] = React.useTransition();
   const takeDown = status === "active";
+
+  async function run() {
+    const result = await adminSetListingStatus(propertyId, takeDown ? "archived" : "active");
+    if (result.ok) toast.success(result.message);
+    else toast.error(result.error);
+  }
+
+  if (!takeDown) {
+    return (
+      <Button size="sm" variant="outline" disabled={pending} onClick={() => startTransition(run)}>
+        Restore
+      </Button>
+    );
+  }
+
   return (
-    <Button
-      size="sm"
-      variant={takeDown ? "destructive" : "outline"}
-      disabled={pending}
-      onClick={() =>
-        startTransition(async () => {
-          const result = await adminSetListingStatus(propertyId, takeDown ? "archived" : "active");
-          if (result.ok) toast.success(result.message);
-          else toast.error(result.error);
-        })
+    <ConfirmActionDialog
+      trigger={
+        <Button size="sm" variant="destructive">
+          Take down
+        </Button>
       }
-    >
-      {takeDown ? "Take down" : "Restore"}
-    </Button>
+      title="Take this listing down?"
+      description="It will be archived and disappear from search, the swipe deck and its public page. The owner keeps it and you can restore it later."
+      confirmLabel="Take down"
+      variant="destructive"
+      onConfirm={run}
+    />
   );
 }
 
