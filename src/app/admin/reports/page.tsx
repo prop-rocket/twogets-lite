@@ -1,5 +1,6 @@
 import { Flag } from "lucide-react";
 
+import { EntityLink } from "@/components/admin/entity-link";
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
 import { ReportActions } from "@/components/admin/admin-actions";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -83,8 +84,8 @@ export default async function AdminReportsPage({
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Reported by {report.reporter?.full_name} ({report.reporter?.email}) ·{" "}
-                      {formatDate(report.created_at)} · target{" "}
-                      <span className="font-mono">{report.target_id.slice(0, 8)}</span>
+                      {formatDate(report.created_at)} ·{" "}
+                      <EntityLink type={report.target_type} id={report.target_id} />
                     </p>
                   </div>
                   <Badge

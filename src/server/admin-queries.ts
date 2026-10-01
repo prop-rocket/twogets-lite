@@ -14,6 +14,8 @@ import type {
   UserRow,
   VerificationWithUser,
   DocumentType,
+  TenantProfileRow,
+  HomeownerProfileRow,
 } from "@/types";
 
 /** One page of admin rows, shaped for the shared <Pagination /> component. */
@@ -244,4 +246,158 @@ export async function listReports(
     return toPage<AdminReport>([], 0, current);
   }
   return toPage(data as unknown as AdminReport[], count, current);
+}
+
+// ---------------------------------------------------------------------------
+// Detail pages
+//
+// One fan-out per entity so the admin has everything about a user or a listing
+// on a single screen, instead of cross-referencing five list pages.
+// ---------------------------------------------------------------------------
+
+export interface AdminUserDetail {
+  user: UserRow;
+  tenantProfile: TenantProfileRow | null;
+  homeownerProfile: HomeownerProfileRow | null;
+  listings: Pick<PropertyRow, "id" | "title" | "city" | "status" | "rent" | "is_verified" | "tenure">[];
+  bookings: {
+    id: string;
+    status: string;
+    created_at: string;
+    property: { id: string; title: string } | null;
+  }[];
+  reviewsWritten: number;
+  reviewsReceived: number;
+  shortlists: number;
+  swipes: number;
+  reports: AdminReport[];
+  auditLog: { id: number; action: string; created_at: string; metadata: unknown }[];
+}
+
+export async function getAdminUserDetail(userId: string): Promise<AdminUserDetail | null> {
+  const supabase = await createClient();
+
+  const { data: user } = await supabase.from("users").select("*").eq("id", userId).maybeSingle();
+  if (!user) return null;
+
+  const count = { count: "exact" as const, head: true };
+  const [
+    tenantProfile,
+    homeownerProfile,
+    listings,
+    bookings,
+    written,
+    received,
+    shortlists,
+    swipes,
+    reports,
+    audit,
+  ] = await Promise.all([
+    supabase.from("tenant_profiles").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("homeowner_profiles").select("*").eq("user_id", userId).maybeSingle(),
+    supabase
+      .from("properties")
+      .select("id, title, city, status, rent, is_verified, tenure")
+      .eq("owner_id", userId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("viewing_bookings")
+      .select("id, status, created_at, property:properties!viewing_bookings_listing_id_fkey(id, title)")
+      .eq("tenant_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(25),
+    supabase.from("reviews").select("*", count).eq("reviewer_id", userId),
+    supabase.from("reviews").select("*", count).eq("reviewee_id", userId),
+    supabase.from("saved_properties").select("*", count).eq("tenant_id", userId),
+    supabase.from("swipes").select("*", count).eq("tenant_id", userId),
+    supabase
+      .from("reports")
+      .select("*, reporter:users!reports_reporter_id_fkey(full_name, email)")
+      .eq("target_type", "user")
+      .eq("target_id", userId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("audit_logs")
+      .select("id, action, created_at, metadata")
+      .eq("entity_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(25),
+  ]);
+
+  return {
+    user: user as UserRow,
+    tenantProfile: (tenantProfile.data as TenantProfileRow | null) ?? null,
+    homeownerProfile: (homeownerProfile.data as HomeownerProfileRow | null) ?? null,
+    listings: (listings.data ?? []) as AdminUserDetail["listings"],
+    bookings: (bookings.data ?? []) as unknown as AdminUserDetail["bookings"],
+    reviewsWritten: written.count ?? 0,
+    reviewsReceived: received.count ?? 0,
+    shortlists: shortlists.count ?? 0,
+    swipes: swipes.count ?? 0,
+    reports: (reports.data ?? []) as unknown as AdminReport[],
+    auditLog: (audit.data ?? []) as AdminUserDetail["auditLog"],
+  };
+}
+
+export interface AdminListingDetail {
+  property: PropertyRow & {
+    owner: Pick<UserRow, "id" | "full_name" | "email" | "is_verified"> | null;
+    property_images: { id: string; storage_path: string; is_cover: boolean }[];
+  };
+  bookings: {
+    id: string;
+    status: string;
+    created_at: string;
+    tenant: { id: string; full_name: string } | null;
+  }[];
+  reviewCount: number;
+  shortlists: number;
+  reports: AdminReport[];
+  auditLog: { id: number; action: string; created_at: string; metadata: unknown }[];
+}
+
+export async function getAdminListingDetail(propertyId: string): Promise<AdminListingDetail | null> {
+  const supabase = await createClient();
+
+  const { data: property } = await supabase
+    .from("properties")
+    .select(
+      "*, owner:users!properties_owner_id_fkey(id, full_name, email, is_verified), property_images(id, storage_path, is_cover)",
+    )
+    .eq("id", propertyId)
+    .maybeSingle();
+  if (!property) return null;
+
+  const count = { count: "exact" as const, head: true };
+  const [bookings, reviews, shortlists, reports, audit] = await Promise.all([
+    supabase
+      .from("viewing_bookings")
+      .select("id, status, created_at, tenant:users!viewing_bookings_tenant_id_fkey(id, full_name)")
+      .eq("listing_id", propertyId)
+      .order("created_at", { ascending: false })
+      .limit(25),
+    supabase.from("reviews").select("*", count).eq("property_id", propertyId),
+    supabase.from("saved_properties").select("*", count).eq("property_id", propertyId),
+    supabase
+      .from("reports")
+      .select("*, reporter:users!reports_reporter_id_fkey(full_name, email)")
+      .eq("target_type", "property")
+      .eq("target_id", propertyId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("audit_logs")
+      .select("id, action, created_at, metadata")
+      .eq("entity_id", propertyId)
+      .order("created_at", { ascending: false })
+      .limit(25),
+  ]);
+
+  return {
+    property: property as unknown as AdminListingDetail["property"],
+    bookings: (bookings.data ?? []) as unknown as AdminListingDetail["bookings"],
+    reviewCount: reviews.count ?? 0,
+    shortlists: shortlists.count ?? 0,
+    reports: (reports.data ?? []) as unknown as AdminReport[],
+    auditLog: (audit.data ?? []) as AdminListingDetail["auditLog"],
+  };
 }

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
 import { BanUserButton, UserPlanButton } from "@/components/admin/admin-actions";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -145,7 +147,9 @@ export default async function AdminUsersPage({
                 {rows.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
-                      <Identity user={user} />
+                      <Link href={`/admin/users/${user.id}`} className="hover:underline">
+                        <Identity user={user} />
+                      </Link>
                     </TableCell>
                     <TableCell className="capitalize">{user.role ?? "—"}</TableCell>
                     <TableCell>
@@ -180,7 +184,9 @@ export default async function AdminUsersPage({
           <div className="space-y-3 md:hidden">
             {rows.map((user) => (
               <div key={user.id} className="space-y-3 rounded-xl border p-4">
-                <Identity user={user} />
+                <Link href={`/admin/users/${user.id}`}>
+                  <Identity user={user} />
+                </Link>
                 <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                   <Badge variant="secondary" className="capitalize">
                     {user.role ?? "—"}

@@ -118,7 +118,7 @@ export default async function AdminListingsPage({
                   <TableRow key={property.id}>
                     <TableCell>
                       <Link
-                        href={`/properties/${property.id}`}
+                        href={`/admin/listings/${property.id}`}
                         className="font-medium text-primary hover:underline"
                       >
                         {property.title}
@@ -153,7 +153,7 @@ export default async function AdminListingsPage({
               <div key={property.id} className="space-y-3 rounded-xl border p-4">
                 <div>
                   <Link
-                    href={`/properties/${property.id}`}
+                    href={`/admin/listings/${property.id}`}
                     className="font-medium text-primary hover:underline"
                   >
                     {property.title}
