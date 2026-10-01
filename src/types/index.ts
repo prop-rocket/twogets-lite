@@ -14,7 +14,15 @@ export * from "./database";
 /** Public-safe slice of a user shown on cards and reviews. */
 export type PublicUser = Pick<
   UserRow,
-  "id" | "full_name" | "avatar_url" | "is_verified" | "trust_score" | "role" | "created_at"
+  | "id"
+  | "full_name"
+  | "avatar_url"
+  | "is_verified"
+  | "trust_score"
+  | "letting_trust_score"
+  | "renting_trust_score"
+  | "role"
+  | "created_at"
 >;
 
 export type PropertyWithImages = PropertyRow & {

@@ -37,6 +37,10 @@ export type UserRow = {
   plan: UserPlan;
   /** Opt-in ability to publish listings. Renting needs no flag — anyone non-admin can. */
   can_host: boolean;
+  /** Reputation as a Homeowner/Host (owner_review ratings). */
+  letting_trust_score: number;
+  /** Reputation as a renter (tenant_review ratings). */
+  renting_trust_score: number;
   created_at: string;
   updated_at: string;
 };

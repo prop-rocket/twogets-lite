@@ -31,8 +31,12 @@ export interface PropertySearchParams {
   page?: number;
 }
 
+/** Public-facing user columns, shared by every join that embeds a user. */
+const PUBLIC_USER_FIELDS =
+  "id, full_name, avatar_url, is_verified, trust_score, letting_trust_score, renting_trust_score, role, created_at";
+
 const LIST_SELECT =
-  "*, property_images(*), owner:users!properties_owner_id_fkey(id, full_name, avatar_url, is_verified, trust_score, role, created_at)";
+  `*, property_images(*), owner:users!properties_owner_id_fkey(${PUBLIC_USER_FIELDS})`;
 
 export async function searchProperties(params: PropertySearchParams) {
   const supabase = await createClient();
@@ -108,7 +112,7 @@ export async function getProperty(id: string): Promise<PropertyDetails | null> {
     .from("properties")
     .select(
       `*, property_images(*),
-       owner:users!properties_owner_id_fkey(id, full_name, avatar_url, is_verified, trust_score, role, created_at),
+       owner:users!properties_owner_id_fkey(${PUBLIC_USER_FIELDS}),
        property_amenities(amenity:amenities(id, slug, label, icon))`,
     )
     .eq("id", id)
@@ -121,7 +125,7 @@ export async function getPropertyReviews(propertyId: string): Promise<ReviewWith
   const { data } = await supabase
     .from("reviews")
     .select(
-      "*, reviewer:users!reviews_reviewer_id_fkey(id, full_name, avatar_url, is_verified, trust_score, role, created_at)",
+      `*, reviewer:users!reviews_reviewer_id_fkey(${PUBLIC_USER_FIELDS})`,
     )
     .eq("property_id", propertyId)
     .eq("is_approved", true)
@@ -135,7 +139,7 @@ export async function getOwnerReviews(ownerId: string): Promise<ReviewWithReview
   const { data } = await supabase
     .from("reviews")
     .select(
-      "*, reviewer:users!reviews_reviewer_id_fkey(id, full_name, avatar_url, is_verified, trust_score, role, created_at)",
+      `*, reviewer:users!reviews_reviewer_id_fkey(${PUBLIC_USER_FIELDS})`,
     )
     .eq("reviewee_id", ownerId)
     .eq("is_approved", true)
@@ -273,7 +277,7 @@ export async function getSwipeDeck(
 // ---------------------------------------------------------------------------
 
 const ATTENDEE_SELECT =
-  "id, slot_id, status, party_size, note, tenant_id, tenant:users!viewing_bookings_tenant_id_fkey(id, full_name, avatar_url, is_verified, trust_score, role, created_at)";
+  `id, slot_id, status, party_size, note, tenant_id, tenant:users!viewing_bookings_tenant_id_fkey(${PUBLIC_USER_FIELDS})`;
 
 /** Open, future slots for a listing + the current tenant's own booking on each. */
 export async function getOpenSlots(propertyId: string, userId?: string): Promise<TenantSlot[]> {
@@ -315,7 +319,7 @@ export async function getTenantBookings(userId: string): Promise<TenantBooking[]
     .select(
       `id, slot_id, listing_id, tenant_id, status, party_size, note, created_at, updated_at,
        slot:viewing_slots!viewing_bookings_slot_id_fkey(id, starts_at, ends_at, status, capacity,
-         owner:users!viewing_slots_owner_id_fkey(id, full_name, avatar_url, is_verified, trust_score, role, created_at)),
+         owner:users!viewing_slots_owner_id_fkey(${PUBLIC_USER_FIELDS})),
        property:properties!viewing_bookings_listing_id_fkey(id, title, locality, city)`,
     )
     .eq("tenant_id", userId)

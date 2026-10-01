@@ -78,7 +78,7 @@ export default async function DashboardPage() {
           </div>
           <div className="flex items-center gap-3">
             {user.is_verified ? <VerifiedBadge kind="tenant" /> : <Badge variant="warning">Not verified</Badge>}
-            <TrustScore score={Number(user.trust_score)} />
+            <TrustScore score={Number(user.renting_trust_score)} variant="renting" />
           </div>
         </div>
 
@@ -178,7 +178,7 @@ export default async function DashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           {user.is_verified ? <VerifiedBadge kind="owner" /> : <Badge variant="warning">Not verified</Badge>}
-          <TrustScore score={Number(user.trust_score)} />
+          <TrustScore score={Number(user.letting_trust_score)} variant="letting" />
         </div>
       </div>
 

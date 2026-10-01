@@ -238,7 +238,7 @@ export default async function PropertyDetailsPage({ params }: { params: Params }
                   </p>
                 </div>
               </div>
-              <TrustScore score={Number(property.owner.trust_score)} />
+              <TrustScore score={Number(property.owner.letting_trust_score)} variant="letting" />
             </CardContent>
           </Card>
         </div>
