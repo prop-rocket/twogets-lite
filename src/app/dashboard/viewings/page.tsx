@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { VIEWING_BOOKING_STATUS_LABELS } from "@/lib/constants";
+import { getActiveMode } from "@/lib/mode";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { formatSlotDay, formatSlotRange } from "@/lib/utils";
 import { getOwnerAgenda, getTenantBookings } from "@/server/queries";
@@ -30,7 +31,7 @@ export default async function ViewingsPage() {
   if (!user) redirect("/login");
 
   // -------------------------------------------------------------- Owner view
-  if (user.role === "homeowner") {
+  if ((await getActiveMode()) === "hosting") {
     const agenda = await getOwnerAgenda(user.id);
     return (
       <div className="space-y-6">

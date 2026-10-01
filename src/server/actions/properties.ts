@@ -95,7 +95,7 @@ async function syncImagesAndAmenities(
 
 export async function createProperty(formData: FormData): Promise<ActionResult<{ id: string }>> {
   const user = await getCurrentUser();
-  if (!user || user.role !== "homeowner") return { ok: false, error: "Sign in as a homeowner" };
+  if (!user || !user.can_host) return { ok: false, error: "Set up hosting first" };
 
   const parsed = parsePropertyForm(formData);
   if (!parsed.success) {
@@ -215,7 +215,7 @@ export async function deletePropertyImage(imageId: string): Promise<ActionResult
 export async function toggleSaveProperty(propertyId: string): Promise<ActionResult<{ saved: boolean }>> {
   const user = await getCurrentUser();
   if (!user) redirect(`/login?next=/properties/${propertyId}`);
-  if (user.role !== "tenant") return { ok: false, error: "Only tenants can save properties" };
+  if (user.role === "admin") return { ok: false, error: "Admin accounts can't save properties" };
 
   const supabase = await createClient();
   const { data: existing } = await supabase

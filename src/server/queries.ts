@@ -233,11 +233,14 @@ function buildDeckQuery(supabase: Awaited<ReturnType<typeof createClient>>, f: D
 export async function getSwipeDeck(
   parsed: ParsedSearch,
   excludeIds: string[],
+  /** Never deal someone their own listing — now that one account can both list and rent. */
+  viewerId?: string,
 ): Promise<SwipeCardItem[]> {
   const supabase = await createClient();
   const excluded = new Set(excludeIds);
 
   let strictQuery = buildDeckQuery(supabase, parsed);
+  if (viewerId) strictQuery = strictQuery.neq("owner_id", viewerId);
   if (excluded.size) strictQuery = strictQuery.not("id", "in", `(${[...excluded].join(",")})`);
 
   const { data: strict, error } = await strictQuery.limit(SWIPE_DECK_SIZE);
@@ -254,6 +257,7 @@ export async function getSwipeDeck(
 
   for (const c of cards) excluded.add(c.id);
   let relaxedQuery = buildDeckQuery(supabase, { ...parsed, relaxed: true });
+  if (viewerId) relaxedQuery = relaxedQuery.neq("owner_id", viewerId);
   if (excluded.size) relaxedQuery = relaxedQuery.not("id", "in", `(${[...excluded].join(",")})`);
   const { data: relaxedData } = await relaxedQuery.limit(SWIPE_DECK_SIZE - cards.length);
 

@@ -33,8 +33,9 @@ export default async function SwipePage({
   const { q } = await searchParams;
   const user = await getCurrentUser();
 
-  // Owners and admins don't swipe — their side of the marketplace is the dashboard.
-  if (user?.role === "homeowner" || user?.role === "admin") {
+  // Admins moderate rather than browse. Hosts can swipe like anyone else —
+  // someone letting a flat may well be looking for one too.
+  if (user?.role === "admin") {
     return (
       <div className="container mx-auto flex min-h-[60vh] items-center justify-center px-4 py-12">
         <Card className="w-full max-w-md p-8 text-center">
@@ -43,18 +44,14 @@ export default async function SwipePage({
               <Building2 className="size-6 text-primary" />
             </div>
             <div>
-              <h1 className="font-display text-2xl font-bold">Swiping is for tenants</h1>
+              <h1 className="font-display text-2xl font-bold">Swiping isn&apos;t for admins</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                {user.role === "homeowner"
-                  ? "Your listings appear as cards in tenants' decks — keep them verified and photographed to win more right swipes."
-                  : "Admin accounts moderate the marketplace rather than browse it."}
+                Admin accounts moderate the marketplace rather than browse it.
               </p>
             </div>
             <div className="flex flex-col gap-2">
               <Button asChild>
-                <Link href={user.role === "homeowner" ? "/dashboard/listings" : "/admin"}>
-                  {user.role === "homeowner" ? "Manage my listings" : "Open admin panel"}
-                </Link>
+                <Link href="/admin">Open admin panel</Link>
               </Button>
               <Button asChild variant="outline">
                 <Link href="/properties">Browse the grid instead</Link>
@@ -91,7 +88,7 @@ export default async function SwipePage({
   }
 
   const query = q?.trim();
-  const isTenant = user?.role === "tenant";
+  const isTenant = Boolean(user);
 
   // Step 1 — describe the home.
   if (!query) {
@@ -131,7 +128,7 @@ export default async function SwipePage({
     isTenant && user ? getSwipedPropertyIds(user.id) : Promise.resolve([]),
     isTenant ? getSwipeQuota(user) : Promise.resolve(null),
   ]);
-  const cards = await getSwipeDeck(parsed, excludeIds);
+  const cards = await getSwipeDeck(parsed, excludeIds, user?.id);
 
   return (
     <div className="container mx-auto max-w-xl space-y-5 px-4 py-8">

@@ -86,7 +86,7 @@ export function SwipeDeck({ initialCards, initialRemaining, isTenant, signedIn, 
             setCards((c) => [card, ...c]); // give the card back
             setRemaining(0);
             setUpgradeOpen(true);
-          } else if (res.code !== "gone") {
+          } else if (res.code !== "gone" && res.code !== "own") {
             toast.error(res.error);
           }
           return;

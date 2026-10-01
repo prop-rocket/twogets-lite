@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { getActiveMode } from "@/lib/mode";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { tenantProfileCompletion } from "@/server/actions/profile";
 
@@ -45,8 +46,10 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const supabase = await createClient();
+  const mode = await getActiveMode();
 
-  if (user.role === "tenant") {
+  // Which dashboard you see follows the active mode, not the signup role.
+  if (mode !== "hosting") {
     const [{ data: profile }, { count: savedCount }, { data: bookings }] = await Promise.all([
       supabase.from("tenant_profiles").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.from("saved_properties").select("*", { count: "exact", head: true }).eq("tenant_id", user.id),
@@ -133,7 +136,7 @@ export default async function DashboardPage() {
     );
   }
 
-  // Homeowner dashboard
+  // Hosting dashboard
   const [{ count: listingCount }, { count: activeCount }, { data: futureSlots }, { data: viewsData }] =
     await Promise.all([
       supabase.from("properties").select("*", { count: "exact", head: true }).eq("owner_id", user.id),

@@ -60,7 +60,7 @@ export default async function PropertyDetailsPage({ params }: { params: Params }
 
   const [reviews, saved, slots] = await Promise.all([
     getPropertyReviews(property.id),
-    user?.role === "tenant" ? isPropertySaved(property.id, user.id) : Promise.resolve(false),
+    user && user.role !== "admin" ? isPropertySaved(property.id, user.id) : Promise.resolve(false),
     isOwner ? Promise.resolve([]) : getOpenSlots(property.id, user?.id),
   ]);
 
@@ -99,7 +99,7 @@ export default async function PropertyDetailsPage({ params }: { params: Params }
           <StarRating rating={Number(property.avg_rating)} count={property.review_count} />
         </div>
         <div className="flex items-center gap-2">
-          {user?.role === "tenant" && (
+          {user && user.role !== "admin" && (
             <SaveButton propertyId={property.id} initialSaved={saved} />
           )}
           <ReportDialog targetType="property" targetId={property.id} />
@@ -207,7 +207,7 @@ export default async function PropertyDetailsPage({ params }: { params: Params }
                   </p>
                   <SlotPicker
                     slots={slots}
-                    canBook={user?.role === "tenant"}
+                    canBook={Boolean(user) && user?.role !== "admin"}
                     loginHref={`/login?next=/properties/${property.id}`}
                   />
                 </div>

@@ -17,7 +17,7 @@ export default async function ListingViewingsPage({ params }: { params: Params }
   const { id } = await params;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "homeowner") redirect("/dashboard");
+  if (!user.can_host) redirect("/dashboard");
 
   const supabase = await createClient();
   const { data: property } = await supabase

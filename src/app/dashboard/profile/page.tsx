@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { OwnerProfileForm } from "@/components/profile/owner-profile-form";
 import { TenantProfileForm } from "@/components/profile/tenant-profile-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getActiveMode } from "@/lib/mode";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 
 export const metadata = { title: "Profile" };
@@ -12,7 +13,7 @@ export default async function ProfilePage() {
   if (!user) redirect("/login");
   const supabase = await createClient();
 
-  if (user.role === "tenant") {
+  if ((await getActiveMode()) !== "hosting") {
     const { data: profile } = await supabase
       .from("tenant_profiles")
       .select("*")

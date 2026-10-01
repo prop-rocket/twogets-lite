@@ -27,7 +27,7 @@ const STATUS_VARIANT: Record<PropertyStatus, "success" | "secondary" | "warning"
 export default async function ListingsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "homeowner") redirect("/dashboard");
+  if (!user.can_host) redirect("/dashboard");
 
   const supabase = await createClient();
   const { data } = await supabase

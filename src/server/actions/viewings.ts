@@ -41,8 +41,8 @@ function windowsFor(
 
 async function assertOwnsProperty(propertyId: string) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "homeowner") {
-    return { error: "Sign in as a homeowner" as const, user: null };
+  if (!user || !user.can_host) {
+    return { error: "Set up hosting first" as const, user: null };
   }
   const supabase = await createClient();
   const { data } = await supabase
@@ -209,7 +209,7 @@ export async function bookSlot(
 ): Promise<ActionResult<{ bookingId: string }>> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Sign in to book", code: "auth" };
-  if (user.role !== "tenant") return { ok: false, error: "Only tenants can book viewings", code: "role" };
+  if (user.role === "admin") return { ok: false, error: "Admin accounts can't book viewings", code: "role" };
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("book_viewing_slot", {

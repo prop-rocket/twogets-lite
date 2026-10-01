@@ -33,7 +33,7 @@ export default async function RoleSelectionPage() {
       <div className="space-y-1">
         <h1 className="font-display text-3xl font-bold">How will you use TwoGets?</h1>
         <p className="text-muted-foreground">
-          This sets up your dashboard — it can&apos;t be changed later.
+          This sets up your dashboard. You can switch sides or do both later.
         </p>
       </div>
       <div className="space-y-3">

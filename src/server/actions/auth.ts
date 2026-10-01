@@ -87,7 +87,12 @@ export async function selectRole(formData: FormData): Promise<void> {
   const { data: existing } = await supabase.from("users").select("role").eq("id", user.id).single();
   if (existing?.role) redirect("/dashboard"); // role is immutable once chosen
 
-  const { error } = await supabase.from("users").update({ role: parsed.data.role }).eq("id", user.id);
+  // Picking "homeowner" here just seeds the hosting capability — it is no longer
+  // a one-way door, since either side can be switched on later from the app.
+  const { error } = await supabase
+    .from("users")
+    .update({ role: parsed.data.role, can_host: parsed.data.role === "homeowner" })
+    .eq("id", user.id);
   if (error) redirect("/onboarding/role?error=failed");
 
   revalidatePath("/", "layout");

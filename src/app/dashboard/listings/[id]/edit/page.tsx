@@ -14,7 +14,7 @@ export default async function EditListingPage({
   const { id } = await params;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "homeowner") redirect("/dashboard");
+  if (!user.can_host) redirect("/dashboard");
 
   const supabase = await createClient();
   const [{ data: property }, { data: amenities }, { data: propertyAmenities }, { data: images }] =

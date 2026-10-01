@@ -25,23 +25,22 @@ import { logout } from "@/server/actions/auth";
 import { avatarUrl, initials } from "@/lib/utils";
 import type { UserRow } from "@/types";
 
-export function UserNav({ user }: { user: UserRow }) {
+export function UserNav({ user, hosting }: { user: UserRow; hosting: boolean }) {
   const items = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/profile", label: "Profile", icon: UserRound },
     { href: "/dashboard/verification", label: "Verification Center", icon: ShieldCheck },
-    ...(user.role === "tenant"
-      ? [
-          { href: "/dashboard/saved", label: "Saved Properties", icon: Heart },
-          { href: "/dashboard/viewings", label: "My Viewings", icon: CalendarDays },
-        ]
-      : []),
-    ...(user.role === "homeowner"
-      ? [
-          { href: "/dashboard/listings", label: "My Listings", icon: Building2 },
-          { href: "/dashboard/viewings", label: "Viewings", icon: CalendarDays },
-        ]
-      : []),
+    ...(user.role === "admin"
+      ? []
+      : hosting
+        ? [
+            { href: "/dashboard/listings", label: "My Listings", icon: Building2 },
+            { href: "/dashboard/viewings", label: "Viewings", icon: CalendarDays },
+          ]
+        : [
+            { href: "/dashboard/saved", label: "Saved Properties", icon: Heart },
+            { href: "/dashboard/viewings", label: "My Viewings", icon: CalendarDays },
+          ]),
     ...(user.role === "admin" ? [{ href: "/admin", label: "Admin Panel", icon: ShieldCheck }] : []),
   ];
 

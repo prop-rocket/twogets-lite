@@ -13,7 +13,7 @@ export const metadata = { title: "Saved Properties" };
 export default async function SavedPropertiesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "tenant") redirect("/dashboard");
+  if (user.role === "admin") redirect("/admin");
 
   const supabase = await createClient();
   const { data } = await supabase

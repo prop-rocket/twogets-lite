@@ -9,7 +9,7 @@ export const metadata = { title: "New Listing" };
 export default async function NewListingPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "homeowner") redirect("/dashboard");
+  if (!user.can_host) redirect("/dashboard");
 
   const supabase = await createClient();
   const { data: amenities } = await supabase.from("amenities").select("*").order("label");

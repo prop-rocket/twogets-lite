@@ -4,6 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import { DocumentUploadCard } from "@/components/verification/document-upload-card";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { Badge } from "@/components/ui/badge";
+import { getActiveMode } from "@/lib/mode";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import type { DocumentType, VerificationRequestRow } from "@/types";
 
@@ -28,7 +29,7 @@ export default async function VerificationPage() {
   const identityDoc = (type: DocumentType) => byType.get(`${type}:`) ?? null;
 
   const { data: properties } =
-    user.role === "homeowner"
+    user.can_host
       ? await supabase
           .from("properties")
           .select("id, title, is_verified")
@@ -46,7 +47,7 @@ export default async function VerificationPage() {
           </p>
         </div>
         {user.is_verified ? (
-          <VerifiedBadge kind={user.role === "homeowner" ? "owner" : "tenant"} />
+          <VerifiedBadge kind={(await getActiveMode()) === "hosting" ? "owner" : "tenant"} />
         ) : (
           <Badge variant="warning">
             <ShieldCheck />
@@ -71,19 +72,17 @@ export default async function VerificationPage() {
             description="PAN card — used only for identity verification, never shared."
           />
         </div>
-        {user.role === "tenant" && (
-          <p className="text-sm text-muted-foreground">
-            Tenants need <strong>both Aadhaar and PAN approved</strong> to earn the Verified Tenant
-            badge. Add your LinkedIn on the{" "}
-            <a href="/dashboard/profile" className="text-primary underline">
-              profile page
-            </a>{" "}
-            to strengthen your application.
-          </p>
-        )}
+        <p className="text-sm text-muted-foreground">
+          You need <strong>both Aadhaar and PAN approved</strong> to earn the Verified badge. Add
+          your LinkedIn on the{" "}
+          <a href="/dashboard/profile" className="text-primary underline">
+            profile page
+          </a>{" "}
+          to strengthen your application.
+        </p>
       </section>
 
-      {user.role === "homeowner" && (
+      {user.can_host && (
         <section className="space-y-4">
           <h2 className="font-display text-xl font-semibold">Property ownership documents</h2>
           {!properties?.length ? (

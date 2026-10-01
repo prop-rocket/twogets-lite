@@ -8,7 +8,7 @@ import type { ActionResult, TenantProfileRow } from "@/types";
 
 export async function updateTenantProfile(formData: FormData): Promise<ActionResult> {
   const user = await getCurrentUser();
-  if (!user || user.role !== "tenant") return { ok: false, error: "Sign in as a tenant" };
+  if (!user || user.role === "admin") return { ok: false, error: "Sign in to edit your profile" };
 
   const parsed = tenantProfileSchema.safeParse({
     fullName: formData.get("fullName"),
@@ -68,7 +68,7 @@ export async function updateTenantProfile(formData: FormData): Promise<ActionRes
 
 export async function updateHomeownerProfile(formData: FormData): Promise<ActionResult> {
   const user = await getCurrentUser();
-  if (!user || user.role !== "homeowner") return { ok: false, error: "Sign in as a homeowner" };
+  if (!user || !user.can_host) return { ok: false, error: "Set up hosting first" };
 
   const parsed = homeownerProfileSchema.safeParse({
     fullName: formData.get("fullName"),

@@ -4,6 +4,7 @@ import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/layout/user-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { getActiveMode } from "@/lib/mode";
 import { getCurrentUser } from "@/lib/supabase/server";
 
 const NAV_LINKS = [
@@ -15,6 +16,7 @@ const NAV_LINKS = [
 
 export async function SiteHeader() {
   const user = await getCurrentUser();
+  const hosting = (await getActiveMode()) === "hosting";
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
@@ -37,12 +39,12 @@ export async function SiteHeader() {
         <div className="flex items-center gap-2">
           {user ? (
             <>
-              {user.role === "homeowner" && (
+              {hosting && user.can_host && (
                 <Button asChild variant="accent" size="sm" className="hidden sm:inline-flex">
                   <Link href="/dashboard/listings/new">List Your Property</Link>
                 </Button>
               )}
-              <UserNav user={user} />
+              <UserNav user={user} hosting={hosting} />
             </>
           ) : (
             <>

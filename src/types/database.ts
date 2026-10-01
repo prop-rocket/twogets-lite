@@ -35,6 +35,8 @@ export type UserRow = {
   trust_score: number;
   is_banned: boolean;
   plan: UserPlan;
+  /** Opt-in ability to publish listings. Renting needs no flag — anyone non-admin can. */
+  can_host: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -242,7 +244,7 @@ export type SwipeRow = {
 /** jsonb envelope returned by the record_swipe() database function. */
 export type RecordSwipeResult = {
   ok: boolean;
-  code?: "auth" | "role" | "banned" | "gone" | "quota";
+  code?: "auth" | "role" | "banned" | "gone" | "quota" | "own";
   right_today?: number;
   /** null = unlimited (plus plan) */
   remaining?: number | null;

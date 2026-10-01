@@ -13,9 +13,10 @@ const swipeSchema = z.object({
 
 const ERROR_MESSAGES: Record<string, string> = {
   auth: "Sign in to start swiping",
-  role: "Swiping is for tenants — homeowners manage listings from the dashboard",
+  role: "Admin accounts moderate the marketplace rather than browse it",
   banned: "Your account is suspended",
   gone: "This listing is no longer available",
+  own: "That's your own listing",
   quota: "You've used today's 3 free shortlists",
 };
 
@@ -28,7 +29,7 @@ export async function recordSwipe(
 
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: ERROR_MESSAGES.auth, code: "auth" };
-  if (user.role !== "tenant") return { ok: false, error: ERROR_MESSAGES.role, code: "role" };
+  if (user.role === "admin") return { ok: false, error: ERROR_MESSAGES.role, code: "role" };
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("record_swipe", {
