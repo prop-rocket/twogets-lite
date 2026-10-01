@@ -102,3 +102,15 @@ export function siteUrl() {
 export function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
+
+/**
+ * How a listing describes its size. A room listing is "Room in a 3 BHK" —
+ * bhk refers to the whole flat, not the room being let.
+ */
+export function describeSize(
+  bhk: number,
+  propertyType: string,
+  typeLabel: string,
+): string {
+  return propertyType === "room" ? `Room in a ${bhk} BHK` : `${bhk} BHK · ${typeLabel}`;
+}

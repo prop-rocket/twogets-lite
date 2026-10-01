@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { FREE_DAILY_RIGHT_SWIPES, FURNISHED_LABELS, PROPERTY_TYPE_LABELS, VIEWING_PROMPT_EVERY } from "@/lib/constants";
-import { cn, formatRent, publicMediaUrl } from "@/lib/utils";
+import { cn, describeSize, formatRent, publicMediaUrl } from "@/lib/utils";
 import { recordSwipe } from "@/server/actions/swipes";
 import type { SwipeCardItem, SwipeDirection } from "@/types";
 
@@ -360,7 +360,7 @@ function DeckCard({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/80">
           <span className="inline-flex items-center gap-1">
             <BedDouble className="size-3.5" />
-            {card.bhk} BHK · {PROPERTY_TYPE_LABELS[card.property_type]}
+            {describeSize(card.bhk, card.property_type, PROPERTY_TYPE_LABELS[card.property_type])}
           </span>
           <span className="inline-flex items-center gap-1">
             <Sofa className="size-3.5" />

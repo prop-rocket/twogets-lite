@@ -26,6 +26,8 @@ import {
   FURNISHED_LABELS,
   OCCUPANCY_LABELS,
   PROPERTY_TYPE_LABELS,
+  SHARED_SPACE_OPTIONS,
+  TENURE_LABELS,
 } from "@/lib/constants";
 import { publicMediaUrl } from "@/lib/utils";
 import { createProperty, deletePropertyImage, updateProperty } from "@/server/actions/properties";
@@ -46,6 +48,8 @@ export function PropertyForm({
 }) {
   const router = useRouter();
   const isEdit = Boolean(property);
+  const [propertyType, setPropertyType] = React.useState(property?.property_type ?? "apartment");
+  const isRoom = propertyType === "room";
   const [uploadedPaths, setUploadedPaths] = React.useState<string[]>([]);
   const [uploading, setUploading] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -123,7 +127,11 @@ export function PropertyForm({
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label>Property type</Label>
-            <Select name="propertyType" defaultValue={property?.property_type ?? "apartment"}>
+            <Select
+              name="propertyType"
+              defaultValue={property?.property_type ?? "apartment"}
+              onValueChange={(v) => setPropertyType(v as typeof propertyType)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -137,7 +145,7 @@ export function PropertyForm({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>BHK</Label>
+            <Label>{isRoom ? "Size of the whole flat" : "BHK"}</Label>
             <Select name="bhk" defaultValue={String(property?.bhk ?? 2)}>
               <SelectTrigger>
                 <SelectValue />
@@ -167,6 +175,125 @@ export function PropertyForm({
             </Select>
           </div>
         </div>
+      </section>
+
+      {/* Tenure + flatshare details */}
+      <section className="space-y-4">
+        <h2 className="font-display text-xl font-semibold">Your relationship to this place</h2>
+        <div className="space-y-1.5">
+          <Label>Do you own it?</Label>
+          <Select name="tenure" defaultValue={property?.tenure ?? "owned"}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(TENURE_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Owners verify with an ownership document; subletters verify with a rental agreement
+            and a landlord NOC.
+          </p>
+        </div>
+
+        <label className="flex items-center gap-3 text-sm font-medium">
+          <Switch
+            id="isSharedHome"
+            name="isSharedHome"
+            defaultChecked={property?.is_shared_home ?? false}
+          />
+          Someone else already lives here (shared home)
+        </label>
+
+        {isRoom && (
+          <div className="space-y-4 rounded-xl border p-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="roomsAvailable">Rooms available</Label>
+                <Input
+                  id="roomsAvailable"
+                  name="roomsAvailable"
+                  type="number"
+                  min={1}
+                  max={10}
+                  defaultValue={property?.rooms_available ?? 1}
+                  required
+                />
+                <FieldError errors={errors?.roomsAvailable} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="existingFlatmates">Current flatmates</Label>
+                <Input
+                  id="existingFlatmates"
+                  name="existingFlatmates"
+                  type="number"
+                  min={0}
+                  max={20}
+                  defaultValue={property?.existing_flatmates ?? ""}
+                  placeholder="e.g. 2"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-6">
+              <label className="flex items-center gap-3 text-sm font-medium">
+                <Switch
+                  id="attachedBathroom"
+                  name="attachedBathroom"
+                  defaultChecked={property?.attached_bathroom ?? false}
+                />
+                Attached bathroom
+              </label>
+              <div className="flex items-center gap-3">
+                <Label>Looking for</Label>
+                <Select
+                  name="flatmateGenderPref"
+                  defaultValue={property?.flatmate_gender_pref ?? "any"}
+                >
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Anyone</SelectItem>
+                    <SelectItem value="male">Men</SelectItem>
+                    <SelectItem value="female">Women</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Shared spaces</Label>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {SHARED_SPACE_OPTIONS.map((space) => (
+                  <label key={space} className="flex items-center gap-2 text-sm font-medium">
+                    <Checkbox
+                      name="sharedSpaces"
+                      value={space}
+                      defaultChecked={property?.shared_spaces?.includes(space)}
+                    />
+                    {space}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="houseRules">House rules (optional)</Label>
+              <Textarea
+                id="houseRules"
+                name="houseRules"
+                rows={3}
+                placeholder="Quiet after 11pm, no smoking indoors…"
+                defaultValue={property?.house_rules ?? ""}
+              />
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Location */}

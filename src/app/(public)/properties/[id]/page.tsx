@@ -33,7 +33,7 @@ import {
   PROPERTY_TYPE_LABELS,
 } from "@/lib/constants";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
-import { avatarUrl, formatDate, formatRent, initials } from "@/lib/utils";
+import { avatarUrl, describeSize, formatDate, formatRent, initials } from "@/lib/utils";
 import { getOpenSlots, getProperty, getPropertyReviews, isPropertySaved } from "@/server/queries";
 
 export const dynamic = "force-dynamic";
@@ -71,7 +71,14 @@ export default async function PropertyDetailsPage({ params }: { params: Params }
   const amenities = property.property_amenities.map((pa) => pa.amenity).filter(Boolean);
 
   const facts = [
-    { icon: BedDouble, label: `${property.bhk} BHK · ${PROPERTY_TYPE_LABELS[property.property_type]}` },
+    {
+      icon: BedDouble,
+      label: describeSize(
+        property.bhk,
+        property.property_type,
+        PROPERTY_TYPE_LABELS[property.property_type],
+      ),
+    },
     { icon: Sofa, label: FURNISHED_LABELS[property.furnished_status] },
     { icon: Users, label: `Preferred: ${OCCUPANCY_LABELS[property.preferred_tenants]}` },
     { icon: CalendarDays, label: `Available from ${formatDate(property.available_from)}` },

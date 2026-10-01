@@ -219,6 +219,7 @@ function buildDeckQuery(supabase: Awaited<ReturnType<typeof createClient>>, f: D
   if (f.petFriendly) query = query.eq("pet_friendly", true);
   if (!f.relaxed && f.furnished) query = query.eq("furnished_status", f.furnished);
   if (!f.relaxed && f.propertyType) query = query.eq("property_type", f.propertyType);
+  if (!f.relaxed && f.sharedHome !== null) query = query.eq("is_shared_home", f.sharedHome);
   if (f.occupancy) query = query.in("preferred_tenants", [f.occupancy, "any"]);
   if (f.verifiedOnly) query = query.eq("is_verified", true);
 
@@ -257,7 +258,9 @@ export async function getSwipeDeck(
   if (cards.length >= 5) return cards;
 
   // Thin deck — top up with close matches (skip if nothing to relax).
-  if (!parsed.maxRent && !parsed.furnished && !parsed.propertyType) return cards;
+  if (!parsed.maxRent && !parsed.furnished && !parsed.propertyType && parsed.sharedHome === null) {
+    return cards;
+  }
 
   for (const c of cards) excluded.add(c.id);
   let relaxedQuery = buildDeckQuery(supabase, { ...parsed, relaxed: true });

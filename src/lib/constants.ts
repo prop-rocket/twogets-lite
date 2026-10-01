@@ -3,6 +3,7 @@ import type {
   FoodPreference,
   FurnishedStatus,
   IncomeRange,
+  ListingTenure,
   OccupancyPreference,
   PropertyStatus,
   PropertyType,
@@ -21,7 +22,22 @@ export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   studio: "Studio",
   row_house: "Row House",
   penthouse: "Penthouse",
+  room: "Room in a shared home",
 };
+
+export const TENURE_LABELS: Record<ListingTenure, string> = {
+  owned: "I own this place",
+  sublet: "I rent it and am subletting",
+};
+
+export const SHARED_SPACE_OPTIONS = [
+  "Kitchen",
+  "Living room",
+  "Balcony",
+  "Washing machine",
+  "Terrace",
+  "Parking",
+] as const;
 
 export const FURNISHED_LABELS: Record<FurnishedStatus, string> = {
   unfurnished: "Unfurnished",

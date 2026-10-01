@@ -21,6 +21,8 @@ export interface ParsedSearch {
   furnished: FurnishedStatus | null;
   propertyType: PropertyType | null;
   occupancy: "bachelor" | "family" | null;
+  /** true = only flatshares, false = only whole places, null = no preference. */
+  sharedHome: boolean | null;
   verifiedOnly: boolean;
 }
 
@@ -71,6 +73,7 @@ export function parseSearchQuery(input: string): ParsedSearch {
     furnished: null,
     propertyType: null,
     occupancy: null,
+    sharedHome: null,
     verifiedOnly: false,
   };
 
@@ -172,6 +175,16 @@ export function parseSearchQuery(input: string): ParsedSearch {
     [/\bstudio\b|\b1\s*rk\b/i, "studio"],
     [/\bflat\b|\bapartment\b/i, "apartment"],
   ];
+  // Flatshare wording wins over the generic type patterns below: "room in a
+  // 3bhk flat" is a room listing, not an apartment listing.
+  consume(/\broom\s*(?:mate|share)?\b|\bflat\s*mate\b|\broomie\b|\bshared\s+(?:home|flat|house|accommodation)\b|\bsublet\b|\bpg\b/i, () => {
+    parsed.sharedHome = true;
+    parsed.propertyType = parsed.propertyType ?? "room";
+  });
+  consume(/\bwhole\s+(?:place|flat|house|home)\b|\bentire\s+(?:place|flat|house|home)\b|\bno\s+flat\s*mates?\b/i, () => {
+    parsed.sharedHome = parsed.sharedHome ?? false;
+  });
+
   for (const [re, type] of TYPE_PATTERNS) {
     consume(re, () => {
       parsed.propertyType = parsed.propertyType ?? type;
@@ -179,11 +192,21 @@ export function parseSearchQuery(input: string): ParsedSearch {
   }
 
   // -- Location: "in/at/near <phrase>" on the consumed remainder ---------------
-  const locMatch = /(?:\bin|\bat|\bnear|\baround)\s+([a-z][a-z0-9\s]{1,40}?)(?=\s*(?:$|[,.]|\bwith\b|\bfor\b|\band\b))/i.exec(s);
-  if (locMatch) {
-    const phrase = locMatch[1].trim().replace(/\s+/g, " ");
-    if (phrase.length >= 2) {
-      parsed.location = CITY_ALIASES[phrase] ?? titleCase(phrase);
+  // Take the LAST preposition, not the first: "room in a 3bhk in Indiranagar"
+  // leaves "in a ... in indiranagar", and the first match would capture the
+  // filler rather than the place. Leading articles are dropped too.
+  const LOC_RE = /(?:\bin|\bat|\bnear|\baround)\s+([a-z][a-z0-9\s]{1,40}?)(?=\s*(?:$|[,.]|\bwith\b|\bfor\b|\band\b))/gi;
+  for (const match of s.matchAll(LOC_RE)) {
+    const phrase = match[1]
+      .trim()
+      .replace(/\s+/g, " ")
+      // The capture can swallow filler before the real place name
+      // ("a in indiranagar"), so keep only what follows the last preposition.
+      .replace(/^.*\b(?:in|at|near|around)\s+/i, "")
+      .replace(/^(?:a|an|the)\s+/i, "")
+      .trim();
+    if (phrase.length >= 2 && !/^(?:a|an|the)$/i.test(phrase)) {
+      parsed.location = CITY_ALIASES[phrase.toLowerCase()] ?? titleCase(phrase);
     }
   }
   // Fallback: a known city named anywhere in the text.
@@ -226,9 +249,12 @@ export function parsedToChips(p: ParsedSearch): { key: keyof ParsedSearch; label
       key: "propertyType",
       label: {
         apartment: "Apartment", independent_house: "Independent house", villa: "Villa",
-        studio: "Studio", row_house: "Row house", penthouse: "Penthouse",
+        studio: "Studio", row_house: "Row house", penthouse: "Penthouse", room: "Room",
       }[p.propertyType],
     });
+  }
+  if (p.sharedHome !== null) {
+    chips.push({ key: "sharedHome", label: p.sharedHome ? "Shared home" : "Whole place" });
   }
   if (p.petFriendly) chips.push({ key: "petFriendly", label: "Pet friendly" });
   if (p.occupancy) chips.push({ key: "occupancy", label: p.occupancy === "bachelor" ? "Bachelor" : "Family" });
@@ -244,7 +270,7 @@ export function parsedToQuery(p: ParsedSearch): string {
     parts.push(
       {
         apartment: "apartment", independent_house: "independent house", villa: "villa",
-        studio: "studio", row_house: "row house", penthouse: "penthouse",
+        studio: "studio", row_house: "row house", penthouse: "penthouse", room: "room",
       }[p.propertyType],
     );
   }
@@ -255,6 +281,8 @@ export function parsedToQuery(p: ParsedSearch): string {
   if (p.furnished === "semi_furnished") parts.push("semi furnished");
   if (p.furnished === "fully_furnished") parts.push("fully furnished");
   if (p.furnished === "unfurnished") parts.push("unfurnished");
+  if (p.sharedHome === true) parts.push("shared home");
+  if (p.sharedHome === false) parts.push("whole place");
   if (p.petFriendly) parts.push("pet friendly");
   if (p.occupancy === "bachelor") parts.push("for bachelors");
   if (p.occupancy === "family") parts.push("for family");

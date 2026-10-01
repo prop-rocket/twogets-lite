@@ -67,7 +67,24 @@ export const homeownerProfileSchema = baseProfileSchema.extend({
 export const propertySchema = z.object({
   title: z.string().trim().min(5, "At least 5 characters").max(120),
   description: z.string().trim().max(5000),
-  propertyType: z.enum(["apartment", "independent_house", "villa", "studio", "row_house", "penthouse"]),
+  propertyType: z.enum([
+    "apartment",
+    "independent_house",
+    "villa",
+    "studio",
+    "row_house",
+    "penthouse",
+    "room",
+  ]),
+  /** Owned or sublet — decides which documents can verify the listing. */
+  tenure: z.enum(["owned", "sublet"]).default("owned"),
+  isSharedHome: z.boolean().default(false),
+  roomsAvailable: z.coerce.number().int().min(1).max(10).optional(),
+  existingFlatmates: z.coerce.number().int().min(0).max(20).optional(),
+  attachedBathroom: z.boolean().default(false),
+  flatmateGenderPref: z.enum(["male", "female", "any"]).optional(),
+  sharedSpaces: z.array(z.string().trim().max(40)).max(12).default([]),
+  houseRules: z.string().trim().max(2000).optional(),
   bhk: z.coerce.number().int().min(1).max(10),
   furnishedStatus: z.enum(["unfurnished", "semi_furnished", "fully_furnished"]),
   addressLine: z.string().trim().min(5, "Enter the address").max(240),
@@ -85,7 +102,19 @@ export const propertySchema = z.object({
   videoUrl: optionalUrl,
   amenityIds: z.array(z.coerce.number().int()).max(30),
   status: z.enum(["draft", "active", "archived", "rented"]).default("draft"),
-});
+})
+  // A room listing is meaningless without the flatshare details, and the DB
+  // enforces the same rule — fail here so the user gets a field error instead
+  // of a constraint violation.
+  .superRefine((v, ctx) => {
+    if (v.propertyType !== "room") return;
+    if (!v.isSharedHome) {
+      ctx.addIssue({ code: "custom", path: ["isSharedHome"], message: "A room listing is a shared home" });
+    }
+    if (v.roomsAvailable == null) {
+      ctx.addIssue({ code: "custom", path: ["roomsAvailable"], message: "How many rooms are free?" });
+    }
+  });
 
 // ---------------------------------------------------------------------------
 // Viewing slots & bookings (owner-published availability)

@@ -29,6 +29,15 @@ function parsePropertyForm(formData: FormData) {
     videoUrl: formData.get("videoUrl") ?? "",
     amenityIds: formData.getAll("amenityIds").map(String),
     status: formData.get("status") ?? "draft",
+    tenure: formData.get("tenure") ?? "owned",
+    isSharedHome: formData.get("isSharedHome") === "on" || formData.get("isSharedHome") === "true",
+    roomsAvailable: formData.get("roomsAvailable") || undefined,
+    existingFlatmates: formData.get("existingFlatmates") || undefined,
+    attachedBathroom:
+      formData.get("attachedBathroom") === "on" || formData.get("attachedBathroom") === "true",
+    flatmateGenderPref: formData.get("flatmateGenderPref") || undefined,
+    sharedSpaces: formData.getAll("sharedSpaces").map(String),
+    houseRules: formData.get("houseRules") || undefined,
   });
 }
 
@@ -56,6 +65,14 @@ function toRow(d: ParsedProperty, ownerId: string) {
     preferred_tenants: d.preferredTenants,
     video_url: d.videoUrl || null,
     status: d.status,
+    tenure: d.tenure,
+    is_shared_home: d.isSharedHome,
+    rooms_available: d.roomsAvailable ?? null,
+    existing_flatmates: d.existingFlatmates ?? null,
+    attached_bathroom: d.attachedBathroom,
+    flatmate_gender_pref: d.flatmateGenderPref ?? null,
+    shared_spaces: d.sharedSpaces,
+    house_rules: d.houseRules || null,
   };
 }
 

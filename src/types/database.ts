@@ -9,7 +9,18 @@
 export type UserRole = "tenant" | "homeowner" | "admin";
 export type VerificationStatus = "pending" | "approved" | "rejected";
 export type DocumentType = "aadhaar" | "pan" | "utility_bill" | "property_tax_receipt" | "sale_deed";
-export type PropertyType = "apartment" | "independent_house" | "villa" | "studio" | "row_house" | "penthouse";
+export type PropertyType =
+  | "apartment"
+  | "independent_house"
+  | "villa"
+  | "studio"
+  | "row_house"
+  | "penthouse"
+  /** A single room in a shared home (flatshare / sublet). */
+  | "room";
+
+/** Whether the lister owns the place (Homeowner) or sublets it (Host). Per listing. */
+export type ListingTenure = "owned" | "sublet";
 export type FurnishedStatus = "unfurnished" | "semi_furnished" | "fully_furnished";
 export type OccupancyPreference = "bachelor" | "family" | "any";
 export type FoodPreference = "vegetarian" | "non_vegetarian" | "eggetarian" | "no_preference";
@@ -98,6 +109,15 @@ export type PropertyRow = {
   view_count: number;
   avg_rating: number;
   review_count: number;
+  /** Owned by the lister, or sublet by them. Decides which documents verify it. */
+  tenure: ListingTenure;
+  is_shared_home: boolean;
+  rooms_available: number | null;
+  existing_flatmates: number | null;
+  attached_bathroom: boolean;
+  flatmate_gender_pref: "male" | "female" | "any" | null;
+  shared_spaces: string[];
+  house_rules: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -431,6 +451,7 @@ export type Database = {
       verification_status: VerificationStatus;
       document_type: DocumentType;
       property_type: PropertyType;
+      listing_tenure: ListingTenure;
       furnished_status: FurnishedStatus;
       occupancy_preference: OccupancyPreference;
       food_preference: FoodPreference;

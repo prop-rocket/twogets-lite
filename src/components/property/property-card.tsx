@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { StarRating } from "@/components/shared/star-rating";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { FURNISHED_LABELS, PROPERTY_TYPE_LABELS } from "@/lib/constants";
-import { formatRent, publicMediaUrl } from "@/lib/utils";
+import { describeSize, formatRent, publicMediaUrl } from "@/lib/utils";
 import type { PropertyListItem } from "@/types";
 
 export function PropertyCard({ property }: { property: PropertyListItem }) {
@@ -53,7 +53,7 @@ export function PropertyCard({ property }: { property: PropertyListItem }) {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <BedDouble className="size-3.5" />
-              {property.bhk} BHK · {PROPERTY_TYPE_LABELS[property.property_type]}
+              {describeSize(property.bhk, property.property_type, PROPERTY_TYPE_LABELS[property.property_type])}
             </span>
             <span className="inline-flex items-center gap-1">
               <Sofa className="size-3.5" />
