@@ -7,17 +7,19 @@ export function VerifiedBadge({
   kind = "user",
   className,
 }: {
-  kind?: "user" | "property" | "owner" | "tenant";
+  kind?: "user" | "property" | "owner" | "host" | "tenant";
   className?: string;
 }) {
   const label =
     kind === "property"
       ? "Verified Property"
       : kind === "owner"
-        ? "Verified Owner"
-        : kind === "tenant"
-          ? "Verified Tenant"
-          : "Verified";
+        ? "Verified Homeowner"
+        : kind === "host"
+          ? "Verified Host"
+          : kind === "tenant"
+            ? "Verified Tenant"
+            : "Verified";
   const Icon = kind === "property" ? ShieldCheck : BadgeCheck;
   return (
     <Badge variant="verified" className={cn("gap-1", className)}>

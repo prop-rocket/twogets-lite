@@ -72,10 +72,19 @@ export const DOCUMENT_LABELS: Record<DocumentType, string> = {
   utility_bill: "Utility Bill",
   property_tax_receipt: "Property Tax Receipt",
   sale_deed: "Sale Deed",
+  rental_agreement: "Rental Agreement",
+  landlord_noc: "Landlord NOC",
 };
 
 export const IDENTITY_DOCUMENTS: DocumentType[] = ["aadhaar", "pan"];
 export const OWNERSHIP_DOCUMENTS: DocumentType[] = ["utility_bill", "property_tax_receipt", "sale_deed"];
+/** A subletter proves the right to let: the agreement, plus the owner's permission. */
+export const SUBLET_DOCUMENTS: DocumentType[] = ["rental_agreement", "landlord_noc"];
+
+/** Which documents verify a listing depends on whether its lister owns it. */
+export function documentsForTenure(tenure: ListingTenure): DocumentType[] {
+  return tenure === "sublet" ? SUBLET_DOCUMENTS : OWNERSHIP_DOCUMENTS;
+}
 
 export const VERIFICATION_STATUS_LABELS: Record<VerificationStatus, string> = {
   pending: "Pending Review",

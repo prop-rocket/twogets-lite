@@ -91,8 +91,10 @@ export default async function PropertyDetailsPage({ params }: { params: Params }
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            {property.is_verified && <VerifiedBadge kind="property" />}
-            {property.owner.is_verified && <VerifiedBadge kind="owner" />}
+            {property.is_verified && (
+              <VerifiedBadge kind={property.tenure === "sublet" ? "host" : "owner"} />
+            )}
+            {property.owner.is_verified && <VerifiedBadge />}
             {property.status !== "active" && (
               <Badge variant="warning">This listing is {property.status}</Badge>
             )}
@@ -238,7 +240,7 @@ export default async function PropertyDetailsPage({ params }: { params: Params }
                 <div>
                   <p className="flex items-center gap-2 font-semibold">
                     {property.owner.full_name}
-                    {property.owner.is_verified && <VerifiedBadge kind="owner" />}
+                    {property.owner.is_verified && <VerifiedBadge />}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Member since {formatDate(property.owner.created_at)}

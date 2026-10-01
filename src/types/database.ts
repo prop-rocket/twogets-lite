@@ -8,7 +8,15 @@
 
 export type UserRole = "tenant" | "homeowner" | "admin";
 export type VerificationStatus = "pending" | "approved" | "rejected";
-export type DocumentType = "aadhaar" | "pan" | "utility_bill" | "property_tax_receipt" | "sale_deed";
+export type DocumentType =
+  | "aadhaar"
+  | "pan"
+  | "utility_bill"
+  | "property_tax_receipt"
+  | "sale_deed"
+  /** Sublet proof: shows the lister rents the place, and may let it on. */
+  | "rental_agreement"
+  | "landlord_noc";
 export type PropertyType =
   | "apartment"
   | "independent_house"

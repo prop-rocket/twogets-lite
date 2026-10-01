@@ -4,9 +4,18 @@ import { ShieldCheck } from "lucide-react";
 import { DocumentUploadCard } from "@/components/verification/document-upload-card";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { Badge } from "@/components/ui/badge";
+import { documentsForTenure } from "@/lib/constants";
 import { getActiveMode } from "@/lib/mode";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import type { DocumentType, VerificationRequestRow } from "@/types";
+
+const DOCUMENT_HINTS: Partial<Record<DocumentType, string>> = {
+  utility_bill: "Recent electricity/water bill in your name.",
+  property_tax_receipt: "Latest property tax payment receipt.",
+  sale_deed: "Registered sale deed (first page is enough).",
+  rental_agreement: "Your signed rental agreement for this place.",
+  landlord_noc: "A no-objection letter from the owner allowing you to sublet.",
+};
 
 export const metadata = { title: "Verification Center" };
 
@@ -32,7 +41,7 @@ export default async function VerificationPage() {
     user.can_host
       ? await supabase
           .from("properties")
-          .select("id, title, is_verified")
+          .select("id, title, is_verified, tenure")
           .eq("owner_id", user.id)
           .order("created_at", { ascending: false })
       : { data: null };
@@ -84,41 +93,38 @@ export default async function VerificationPage() {
 
       {user.can_host && (
         <section className="space-y-4">
-          <h2 className="font-display text-xl font-semibold">Property ownership documents</h2>
+          <h2 className="font-display text-xl font-semibold">Listing documents</h2>
           {!properties?.length ? (
             <p className="text-sm text-muted-foreground">
-              Create a listing first — then verify it here with a utility bill, property tax receipt
-              or sale deed.
+              Create a listing first — then verify it here. Places you own are verified with an
+              ownership document; places you sublet need a rental agreement and your landlord&apos;s
+              NOC.
             </p>
           ) : (
             properties.map((property) => (
               <div key={property.id} className="space-y-3 rounded-xl border p-4">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="font-semibold">{property.title}</h3>
-                  {property.is_verified && <VerifiedBadge kind="property" />}
-                </div>
-                <div className="grid gap-4 md:grid-cols-3">
-                  {(["utility_bill", "property_tax_receipt", "sale_deed"] as DocumentType[]).map(
-                    (type) => (
-                      <DocumentUploadCard
-                        key={type}
-                        documentType={type}
-                        userId={user.id}
-                        propertyId={property.id}
-                        request={byType.get(`${type}:${property.id}`) ?? null}
-                        description={
-                          type === "utility_bill"
-                            ? "Recent electricity/water bill in your name."
-                            : type === "property_tax_receipt"
-                              ? "Latest property tax payment receipt."
-                              : "Registered sale deed (first page is enough)."
-                        }
-                      />
-                    ),
+                  {property.is_verified && (
+                    <VerifiedBadge kind={property.tenure === "sublet" ? "host" : "owner"} />
                   )}
                 </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {documentsForTenure(property.tenure).map((type) => (
+                    <DocumentUploadCard
+                      key={type}
+                      documentType={type}
+                      userId={user.id}
+                      propertyId={property.id}
+                      request={byType.get(`${type}:${property.id}`) ?? null}
+                      description={DOCUMENT_HINTS[type] ?? ""}
+                    />
+                  ))}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Any one approved document earns this property the Verified badge.
+                  {property.tenure === "sublet"
+                    ? "Both the rental agreement and the landlord NOC must be approved — the agreement alone doesn't show you may sublet."
+                    : "Any one approved document earns this listing the Verified badge."}
                 </p>
               </div>
             ))
