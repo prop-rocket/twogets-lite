@@ -16,6 +16,7 @@ import type {
   UserRow,
   ViewingAvailabilityRuleRow,
   ViewingSlotWithCountsRow,
+  ViewingBookingStatus,
 } from "@/types";
 
 export interface PropertySearchParams {
@@ -297,15 +298,18 @@ export async function getOpenSlots(propertyId: string, userId?: string): Promise
     return [];
   }
 
-  const myBookings = new Map<string, { id: string; status: "confirmed" }>();
+  const myBookings = new Map<string, { id: string; status: ViewingBookingStatus }>();
   if (userId) {
     const { data: bk } = await supabase
       .from("viewing_bookings")
       .select("id, slot_id, status")
       .eq("tenant_id", userId)
       .eq("listing_id", propertyId)
-      .eq("status", "confirmed");
-    for (const b of bk ?? []) myBookings.set(b.slot_id, { id: b.id, status: "confirmed" });
+      // Pending too, or a tenant awaiting a decision sees "not booked" and asks again.
+      .in("status", ["pending", "confirmed"]);
+    for (const b of bk ?? []) {
+      myBookings.set(b.slot_id, { id: b.id, status: b.status as ViewingBookingStatus });
+    }
   }
 
   return ((slots ?? []) as ViewingSlotWithCountsRow[]).map((s) => ({
@@ -359,7 +363,8 @@ async function attachAttendees(
     .from("viewing_bookings")
     .select(ATTENDEE_SELECT)
     .in("slot_id", slotIds)
-    .in("status", ["confirmed", "attended", "no_show"]);
+    // Pending first — without it the owner cannot see a request, so could never answer it.
+    .in("status", ["pending", "confirmed", "attended", "no_show"]);
 
   const bySlot = new Map<string, BookingAttendee[]>();
   for (const b of (bookings ?? []) as unknown as Array<Record<string, unknown>>) {

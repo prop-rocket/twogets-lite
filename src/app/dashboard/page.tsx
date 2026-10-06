@@ -57,7 +57,7 @@ export default async function DashboardPage() {
         .from("viewing_bookings")
         .select("id, slot:viewing_slots!viewing_bookings_slot_id_fkey(starts_at)")
         .eq("tenant_id", user.id)
-        .eq("status", "confirmed"),
+        .in("status", ["pending", "confirmed"]),
     ]);
 
     const upcomingCount = (bookings ?? []).filter((b) => {

@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { VIEWING_BOOKING_STATUS_LABELS } from "@/lib/constants";
 import { avatarUrl, formatSlotDay, formatSlotRange, initials, istDayKey } from "@/lib/utils";
-import { cancelSlot, setAttendance } from "@/server/actions/viewings";
+import { cancelSlot, respondToBooking, setAttendance } from "@/server/actions/viewings";
 import type { BookingAttendee, OwnerSlot } from "@/types";
 
 function AttendeeRow({
@@ -30,6 +30,16 @@ function AttendeeRow({
   function mark(status: BookingAttendee["status"]) {
     start(async () => {
       const result = await setAttendance(attendee.id, status, propertyId);
+      if (result.ok) {
+        toast.success(result.message);
+        router.refresh();
+      } else toast.error(result.error);
+    });
+  }
+
+  function respond(accept: boolean) {
+    start(async () => {
+      const result = await respondToBooking(attendee.id, accept);
       if (result.ok) {
         toast.success(result.message);
         router.refresh();
@@ -56,6 +66,17 @@ function AttendeeRow({
           )}
         </div>
       </div>
+
+      {!isPast && attendee.status === "pending" && (
+        <div className="flex items-center gap-2">
+          <Button size="sm" disabled={pending} onClick={() => respond(true)}>
+            Accept
+          </Button>
+          <Button size="sm" variant="ghost" disabled={pending} onClick={() => respond(false)}>
+            Decline
+          </Button>
+        </div>
+      )}
 
       {isPast && (
         <div className="flex items-center gap-2">
@@ -106,6 +127,7 @@ function SlotCard({ slot, propertyId }: { slot: OwnerSlot; propertyId: string })
             <Users className="size-3.5" />
             {slot.going_count} going
             {slot.capacity != null ? ` of ${slot.capacity}` : " · unlimited"}
+            {slot.pending_count > 0 && ` · ${slot.pending_count} awaiting you`}
           </p>
         </div>
         <div className="flex items-center gap-2">

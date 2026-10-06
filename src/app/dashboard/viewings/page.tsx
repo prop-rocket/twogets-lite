@@ -20,7 +20,9 @@ export const metadata = { title: "Viewings" };
 export const dynamic = "force-dynamic";
 
 const STATUS_VARIANT: Record<ViewingBookingStatus, "warning" | "success" | "destructive" | "secondary"> = {
+  pending: "warning",
   confirmed: "success",
+  declined: "destructive",
   attended: "success",
   no_show: "destructive",
   cancelled: "secondary",
@@ -91,13 +93,16 @@ export default async function ViewingsPage() {
 
   const now = Date.now();
   const upcoming = bookings.filter(
-    (b) => b.status === "confirmed" && new Date(b.slot.starts_at).getTime() > now,
+    (b) =>
+      (b.status === "confirmed" || b.status === "pending") &&
+      new Date(b.slot.starts_at).getTime() > now,
   );
   const past = bookings.filter((b) => !upcoming.includes(b));
 
   function Row({ booking }: { booking: (typeof bookings)[number] }) {
-    const upcomingConfirmed =
-      booking.status === "confirmed" && new Date(booking.slot.starts_at).getTime() > now;
+    const upcomingLive =
+      (booking.status === "confirmed" || booking.status === "pending") &&
+      new Date(booking.slot.starts_at).getTime() > now;
     return (
       <Card>
         <CardContent className="space-y-3 p-5">
@@ -119,7 +124,7 @@ export default async function ViewingsPage() {
               — {booking.property.locality}, {booking.property.city} · hosted by {booking.owner.full_name}
             </span>
           </p>
-          {upcomingConfirmed && <CancelBookingButton bookingId={booking.id} />}
+          {upcomingLive && <CancelBookingButton bookingId={booking.id} />}
           {booking.status === "attended" &&
             (reviewed.has(booking.id) ? (
               <p className="text-sm text-muted-foreground">✓ You reviewed this viewing.</p>

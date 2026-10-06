@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CalendarClock, Check, Loader2, Users, X } from "lucide-react";
+import { CalendarClock, Check, Clock, Loader2, Users, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +18,8 @@ const MAX_DATES = 5;
 /**
  * Tenant-facing slot picker — date-first. We show only the dates the owner has
  * actually published slots for (capped at the next five), preselecting the
- * earliest. Tapping a date reveals that day's open slots. Booking is one-tap
- * and auto-confirmed (no custom time entry anywhere).
+ * earliest. Tapping a date reveals that day's open slots. Requesting is one
+ * tap; the owner then accepts or declines (no custom time entry anywhere).
  */
 export function SlotPicker({
   slots: initialSlots,
@@ -61,12 +61,11 @@ export function SlotPicker({
     setPendingId(null);
     if (result.ok && result.data) {
       const bookingId = result.data.bookingId;
+      // A request doesn't take a spot — only the owner accepting it does.
       patch(slot.id, (s) => ({
         ...s,
-        my_booking: { id: bookingId, status: "confirmed" },
-        going_count: s.going_count + 1,
-        spots_left: s.spots_left == null ? null : Math.max(0, s.spots_left - 1),
-        is_full: s.capacity != null && s.going_count + 1 >= s.capacity,
+        my_booking: { id: bookingId, status: "pending" },
+        pending_count: s.pending_count + 1,
       }));
       toast.success(result.message);
     } else if (!result.ok) {
@@ -81,12 +80,14 @@ export function SlotPicker({
     const result = await cancelBooking(slot.my_booking.id);
     setPendingId(null);
     if (result.ok) {
+      const wasAccepted = slot.my_booking?.status === "confirmed";
       patch(slot.id, (s) => ({
         ...s,
         my_booking: null,
-        going_count: Math.max(0, s.going_count - 1),
-        spots_left: s.spots_left == null ? null : s.spots_left + 1,
-        is_full: false,
+        going_count: wasAccepted ? Math.max(0, s.going_count - 1) : s.going_count,
+        pending_count: wasAccepted ? s.pending_count : Math.max(0, s.pending_count - 1),
+        spots_left: wasAccepted && s.spots_left != null ? s.spots_left + 1 : s.spots_left,
+        is_full: wasAccepted ? false : s.is_full,
       }));
       toast.success(result.message);
     } else {
@@ -142,7 +143,9 @@ export function SlotPicker({
       ) : (
         <div className="space-y-2">
           {daySlots.map((slot) => {
-            const booked = Boolean(slot.my_booking);
+            const status = slot.my_booking?.status;
+            const awaiting = status === "pending";
+            const booked = status === "confirmed";
             const pending = pendingId === slot.id;
             return (
               <div
@@ -174,18 +177,18 @@ export function SlotPicker({
                   <Button asChild size="sm" variant="outline">
                     <Link href={loginHref}>Sign in to book</Link>
                   </Button>
-                ) : booked ? (
+                ) : booked || awaiting ? (
                   <div className="flex shrink-0 items-center gap-2">
-                    <Badge variant="success" className="gap-1">
-                      <Check className="size-3.5" />
-                      You&apos;re going
+                    <Badge variant={awaiting ? "warning" : "success"} className="gap-1">
+                      {awaiting ? <Clock className="size-3.5" /> : <Check className="size-3.5" />}
+                      {awaiting ? "Requested" : "You're going"}
                     </Badge>
                     <Button
                       size="sm"
                       variant="ghost"
                       disabled={pending}
                       onClick={() => cancel(slot)}
-                      aria-label="Cancel booking"
+                      aria-label={awaiting ? "Withdraw request" : "Cancel booking"}
                     >
                       {pending ? <Loader2 className="size-4 animate-spin" /> : <X className="size-4" />}
                     </Button>
@@ -196,7 +199,7 @@ export function SlotPicker({
                   </Button>
                 ) : (
                   <Button size="sm" disabled={pending} onClick={() => book(slot)}>
-                    {pending ? <Loader2 className="size-4 animate-spin" /> : "Book viewing"}
+                    {pending ? <Loader2 className="size-4 animate-spin" /> : "Request viewing"}
                   </Button>
                 )}
               </div>

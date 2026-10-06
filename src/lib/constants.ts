@@ -100,6 +100,8 @@ export const PROPERTY_STATUS_LABELS: Record<PropertyStatus, string> = {
 };
 
 export const VIEWING_BOOKING_STATUS_LABELS: Record<ViewingBookingStatus, string> = {
+  pending: "Awaiting owner",
+  declined: "Declined",
   confirmed: "Confirmed",
   cancelled: "Cancelled",
   attended: "Attended",

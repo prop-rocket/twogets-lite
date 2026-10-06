@@ -36,7 +36,15 @@ export type IncomeRange = "below_3l" | "3l_6l" | "6l_12l" | "12l_24l" | "above_2
 export type PropertyStatus = "draft" | "active" | "archived" | "rented";
 export type ViewingSlotSource = "manual" | "recurring";
 export type ViewingSlotStatus = "open" | "cancelled";
-export type ViewingBookingStatus = "confirmed" | "cancelled" | "attended" | "no_show";
+export type ViewingBookingStatus =
+  /** Awaiting the owner's decision. */
+  | "pending"
+  | "confirmed"
+  /** Owner turned the request down. */
+  | "declined"
+  | "cancelled"
+  | "attended"
+  | "no_show";
 export type ReviewType = "owner_review" | "tenant_review";
 export type ReportTarget = "user" | "property" | "review";
 export type ReportStatus = "open" | "resolved" | "dismissed";
@@ -206,6 +214,8 @@ export type ViewingSlotRow = {
 /** Read model: viewing_slots + live booking counts (viewing_slots_with_counts). */
 export type ViewingSlotWithCountsRow = ViewingSlotRow & {
   going_count: number;
+  /** Requests still waiting on the owner. */
+  pending_count: number;
   spots_left: number | null; // null => unlimited capacity
   is_full: boolean;
 };
@@ -444,6 +454,11 @@ export type Database = {
         Returns: undefined;
       };
       viewing_slot_going_count: { Args: { p_slot_id: string }; Returns: number };
+      viewing_slot_pending_count: { Args: { p_slot_id: string }; Returns: number };
+      respond_to_booking: {
+        Args: { p_booking_id: string; p_accept: boolean };
+        Returns: ViewingBookingRow;
+      };
       log_admin_action: {
         Args: {
           p_action: string;

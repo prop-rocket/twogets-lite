@@ -63,7 +63,7 @@ const HOW_IT_WORKS = [
     icon: CalendarCheck,
     step: "03",
     title: "Book a Viewing",
-    description: "Owners publish open viewing times — book one in a single tap, confirmed instantly.",
+    description: "Owners publish open viewing times — request one in a single tap, and they confirm.",
   },
   {
     icon: Zap,

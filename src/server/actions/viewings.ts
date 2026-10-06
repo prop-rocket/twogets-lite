@@ -224,7 +224,7 @@ export async function bookSlot(
   }
 
   revalidatePath("/dashboard/viewings");
-  return { ok: true, message: "You're going! The viewing is confirmed.", data: { bookingId: data.id } };
+  return { ok: true, message: "Request sent — the owner will confirm.", data: { bookingId: data.id } };
 }
 
 export async function cancelBooking(bookingId: string): Promise<ActionResult> {
@@ -237,9 +237,29 @@ export async function cancelBooking(bookingId: string): Promise<ActionResult> {
     .update({ status: "cancelled" })
     .eq("id", bookingId)
     .eq("tenant_id", user.id)
-    .eq("status", "confirmed");
+    // A request can be withdrawn while it is still waiting, not just once accepted.
+    .in("status", ["pending", "confirmed"]);
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/dashboard/viewings");
   return { ok: true, message: "Booking cancelled" };
+}
+
+/** Owner accepts or declines a site-visit request. */
+export async function respondToBooking(
+  bookingId: string,
+  accept: boolean,
+): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Sign in first" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("respond_to_booking", {
+    p_booking_id: bookingId,
+    p_accept: accept,
+  });
+  if (error) return { ok: false, error: error.message.replace(/^.*:\s*/, "") };
+
+  revalidatePath("/dashboard/viewings");
+  return { ok: true, message: accept ? "Viewing confirmed" : "Request declined" };
 }
