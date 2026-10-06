@@ -16,6 +16,9 @@ import type {
   DocumentType,
   TenantProfileRow,
   HomeownerProfileRow,
+  SubscriptionRow,
+  TransactionRow,
+  PlanRow,
 } from "@/types";
 
 /** One page of admin rows, shaped for the shared <Pagination /> component. */
@@ -455,5 +458,53 @@ export async function getAdminAnalytics(days = 30): Promise<AdminAnalytics> {
     viewings: (viewings.data ?? {}) as unknown as Record<string, number>,
     verification: (verification.data ?? {}) as unknown as Record<string, number>,
     users: (users.data ?? {}) as unknown as Record<string, number>,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Billing
+// ---------------------------------------------------------------------------
+export type AdminSubscription = SubscriptionRow & {
+  user: { id: string; full_name: string; email: string } | null;
+};
+export type AdminTransaction = TransactionRow & {
+  user: { id: string; full_name: string; email: string } | null;
+};
+
+export interface AdminBilling {
+  summary: Record<string, number>;
+  subscriptions: AdminSubscription[];
+  transactions: AdminTransaction[];
+  plans: PlanRow[];
+}
+
+export async function getAdminBilling(days = 30): Promise<AdminBilling> {
+  const supabase = await createClient();
+  const userJoin = "user:users!inner(id, full_name, email)";
+
+  const [summary, subs, txns, plans] = await Promise.all([
+    supabase.rpc("admin_revenue_summary", { p_days: days }),
+    supabase
+      .from("subscriptions")
+      .select(`*, ${userJoin}`)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("transactions")
+      .select(`*, ${userJoin}`)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase.from("plans").select("*").order("price_paise", { ascending: true }),
+  ]);
+
+  for (const r of [summary, subs, txns, plans]) {
+    if (r.error) console.error("getAdminBilling:", r.error.message);
+  }
+
+  return {
+    summary: (summary.data ?? {}) as unknown as Record<string, number>,
+    subscriptions: (subs.data ?? []) as unknown as AdminSubscription[],
+    transactions: (txns.data ?? []) as unknown as AdminTransaction[],
+    plans: (plans.data ?? []) as unknown as PlanRow[],
   };
 }

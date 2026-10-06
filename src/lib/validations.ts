@@ -211,3 +211,16 @@ export const reportSchema = z.object({
   reason: z.string().trim().min(3, "Tell us what's wrong").max(120),
   details: z.string().trim().max(2000),
 });
+
+// ---------------------------------------------------------------------------
+// Billing (manual records — no gateway yet)
+// ---------------------------------------------------------------------------
+export const manualPaymentSchema = z.object({
+  userId: z.string().uuid("Pick an account"),
+  planCode: z.string().trim().min(1),
+  /** Entered in rupees; stored as integer paise. */
+  amountRupees: z.coerce.number().min(0).max(10_000_000),
+  months: z.coerce.number().int().min(1).max(36).default(1),
+  method: z.string().trim().max(40).optional(),
+  notes: z.string().trim().max(500).optional(),
+});

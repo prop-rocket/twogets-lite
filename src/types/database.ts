@@ -264,6 +264,62 @@ export type ReviewRow = {
   updated_at: string;
 };
 
+export type SubscriptionStatus =
+  | "trialing"
+  | "active"
+  | "past_due"
+  | "cancelled"
+  | "expired";
+export type TransactionStatus = "created" | "authorized" | "captured" | "failed" | "refunded";
+
+export type PlanRow = {
+  code: string;
+  name: string;
+  /** Integer paise — money is never floating point. */
+  price_paise: number;
+  interval: "month" | "year" | "once";
+  features: string[];
+  active: boolean;
+  created_at: string;
+};
+
+export type SubscriptionRow = {
+  id: string;
+  user_id: string;
+  plan_code: string;
+  status: SubscriptionStatus;
+  started_at: string;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  /** 'manual' today; a gateway name once one exists. */
+  provider: string;
+  provider_subscription_id: string | null;
+  notes: string | null;
+  created_by: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TransactionRow = {
+  id: string;
+  user_id: string;
+  subscription_id: string | null;
+  amount_paise: number;
+  currency: string;
+  status: TransactionStatus;
+  method: string | null;
+  provider: string;
+  provider_payment_id: string | null;
+  provider_order_id: string | null;
+  recorded_by: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  captured_at: string | null;
+};
+
 export type ReportRow = {
   id: string;
   reporter_id: string;
@@ -422,6 +478,17 @@ export type Database = {
           Rel<"reviews_reviewee_id_fkey", ["reviewee_id"], "users">,
         ];
       };
+      plans: Omit<TableShape<PlanRow, "code" | "name" | "price_paise">, "Relationships"> & {
+        Relationships: [];
+      };
+      subscriptions: Omit<
+        TableShape<SubscriptionRow, "user_id" | "plan_code">,
+        "Relationships"
+      > & { Relationships: [] };
+      transactions: Omit<
+        TableShape<TransactionRow, "user_id" | "amount_paise">,
+        "Relationships"
+      > & { Relationships: [] };
       reports: Omit<TableShape<ReportRow, "reporter_id" | "target_type" | "target_id" | "reason">, "Relationships"> & {
         Relationships: [
           Rel<"reports_reporter_id_fkey", ["reporter_id"], "users">,
@@ -488,6 +555,7 @@ export type Database = {
         Returns: Record<string, number>;
       };
       admin_user_mix: { Args: Record<PropertyKey, never>; Returns: Record<string, number> };
+      admin_revenue_summary: { Args: { p_days?: number }; Returns: Record<string, number> };
       admin_cancel_viewing_slot: { Args: { p_slot_id: string }; Returns: undefined };
       admin_set_booking_status: {
         Args: { p_booking_id: string; p_status: ViewingBookingStatus };

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import {
   BarChart3,
+  CreditCard,
   Building2,
   FileCheck2,
   Flag,
@@ -23,6 +24,7 @@ const ITEMS: SidebarItem[] = [
   { href: "/admin/listings", label: "Listings", icon: <Building2 className="size-4" /> },
   { href: "/admin/reviews", label: "Reviews", icon: <Star className="size-4" /> },
   { href: "/admin/reports", label: "Reports", icon: <Flag className="size-4" /> },
+  { href: "/admin/payments", label: "Payments", icon: <CreditCard className="size-4" /> },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
