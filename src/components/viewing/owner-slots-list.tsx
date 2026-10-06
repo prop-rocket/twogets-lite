@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarClock, Loader2, Users, X } from "lucide-react";
 import { toast } from "sonner";
@@ -55,7 +56,12 @@ function AttendeeRow({
           <AvatarFallback>{initials(attendee.tenant.full_name)}</AvatarFallback>
         </Avatar>
         <div className="text-sm">
-          <span className="font-medium">{attendee.tenant.full_name}</span>
+          <Link
+            href={`/users/${attendee.tenant_id}`}
+            className="font-medium text-primary hover:underline"
+          >
+            {attendee.tenant.full_name}
+          </Link>
           {attendee.party_size > 1 && (
             <span className="text-muted-foreground"> · party of {attendee.party_size}</span>
           )}

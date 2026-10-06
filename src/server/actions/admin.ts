@@ -164,6 +164,31 @@ export async function adminSetListingStatus(
   return { ok: true, message: `Listing set to ${status}` };
 }
 
+/**
+ * Records that an admin has spoken to the real owner. Required alongside
+ * documents before a listing someone else owns can show a verified badge.
+ */
+export async function confirmListingWithOwner(
+  propertyId: string,
+  confirmed: boolean,
+): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: "Admin access required" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("confirm_listing_with_owner", {
+    p_property_id: propertyId,
+    p_confirmed: confirmed,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  await logAdmin(supabase, confirmed ? "listing.owner_confirmed" : "listing.owner_unconfirmed", "property", propertyId);
+
+  revalidatePath(`/admin/listings/${propertyId}`);
+  revalidatePath(`/properties/${propertyId}`);
+  return { ok: true, message: confirmed ? "Owner confirmed" : "Owner confirmation removed" };
+}
+
 export async function moderateReview(reviewId: string, approve: boolean): Promise<ActionResult> {
   const admin = await requireAdmin();
   if (!admin) return { ok: false, error: "Admin access required" };

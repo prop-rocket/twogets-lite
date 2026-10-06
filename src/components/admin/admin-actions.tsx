@@ -18,6 +18,7 @@ import { SubmitButton } from "@/components/shared/submit-button";
 import { ConfirmActionDialog } from "@/components/admin/confirm-action-dialog";
 import {
   adminSetListingStatus,
+  confirmListingWithOwner,
   getDocumentSignedUrl,
   moderateReview,
   resolveReport,
@@ -256,5 +257,33 @@ export function ReportActions({ reportId }: { reportId: string }) {
         Dismiss
       </Button>
     </div>
+  );
+}
+
+/** Records the phone call to the real owner for a listing they don't own. */
+export function OwnerConfirmButton({
+  propertyId,
+  confirmed,
+}: {
+  propertyId: string;
+  confirmed: boolean;
+}) {
+  const [pending, startTransition] = React.useTransition();
+  return (
+    <Button
+      size="sm"
+      variant={confirmed ? "outline" : "default"}
+      disabled={pending}
+      onClick={() =>
+        startTransition(async () => {
+          const result = await confirmListingWithOwner(propertyId, !confirmed);
+          if (result.ok) toast.success(result.message);
+          else toast.error(result.error);
+        })
+      }
+    >
+      <ShieldCheck />
+      {confirmed ? "Undo owner confirmation" : "Confirmed with owner"}
+    </Button>
   );
 }

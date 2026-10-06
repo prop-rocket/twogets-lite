@@ -76,8 +76,11 @@ export const propertySchema = z.object({
     "penthouse",
     "room",
   ]),
-  /** Owned or sublet — decides which documents can verify the listing. */
-  tenure: z.enum(["owned", "sublet"]).default("owned"),
+  listingKind: z.enum(["rental", "roommate"]).default("rental"),
+  /** Whose property it is. Decides which documents can verify the listing. */
+  ownerRelationship: z.enum(["self", "parents", "known"]).default("self"),
+  ownerContactName: z.string().trim().max(120).optional(),
+  ownerContactPhone: z.string().trim().max(20).optional(),
   isSharedHome: z.boolean().default(false),
   roomsAvailable: z.coerce.number().int().min(1).max(10).optional(),
   existingFlatmates: z.coerce.number().int().min(0).max(20).optional(),
@@ -113,6 +116,17 @@ export const propertySchema = z.object({
     }
     if (v.roomsAvailable == null) {
       ctx.addIssue({ code: "custom", path: ["roomsAvailable"], message: "How many rooms are free?" });
+    }
+  })
+  // We ring the real owner before trusting a listing someone else owns, so we
+  // need someone to ring. The DB enforces the same rule.
+  .superRefine((v, ctx) => {
+    if (v.listingKind !== "rental" || v.ownerRelationship === "self") return;
+    if (!v.ownerContactName) {
+      ctx.addIssue({ code: "custom", path: ["ownerContactName"], message: "Who owns it?" });
+    }
+    if (!v.ownerContactPhone) {
+      ctx.addIssue({ code: "custom", path: ["ownerContactPhone"], message: "We need to reach them" });
     }
   });
 

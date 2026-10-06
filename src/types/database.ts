@@ -14,9 +14,14 @@ export type DocumentType =
   | "utility_bill"
   | "property_tax_receipt"
   | "sale_deed"
-  /** Sublet proof: shows the lister rents the place, and may let it on. */
+  /** Proof you live somewhere — verifies a flatmate post. */
   | "rental_agreement"
-  | "landlord_noc";
+  /** Unused since 00018; kept because enum values can't be dropped cleanly. */
+  | "landlord_noc"
+  /** The property belongs to a parent. */
+  | "ration_card"
+  /** Written authorisation from the owner to list on their behalf. */
+  | "authorisation_letter";
 export type PropertyType =
   | "apartment"
   | "independent_house"
@@ -27,8 +32,10 @@ export type PropertyType =
   /** A single room in a shared home (flatshare / sublet). */
   | "room";
 
-/** Whether the lister owns the place (Homeowner) or sublets it (Host). Per listing. */
-export type ListingTenure = "owned" | "sublet";
+/** What kind of post this is: letting a property, or finding a flatmate. */
+export type ListingKind = "rental" | "roommate";
+/** Whose property it is. No agent/broker option — the platform doesn't encourage them. */
+export type OwnerRelationship = "self" | "parents" | "known";
 export type FurnishedStatus = "unfurnished" | "semi_furnished" | "fully_furnished";
 export type OccupancyPreference = "bachelor" | "family" | "any";
 export type FoodPreference = "vegetarian" | "non_vegetarian" | "eggetarian" | "no_preference";
@@ -125,8 +132,14 @@ export type PropertyRow = {
   view_count: number;
   avg_rating: number;
   review_count: number;
-  /** Owned by the lister, or sublet by them. Decides which documents verify it. */
-  tenure: ListingTenure;
+  listing_kind: ListingKind;
+  /** Only meaningful for a rental. Decides which documents verify the listing. */
+  owner_relationship: OwnerRelationship;
+  owner_contact_name: string | null;
+  owner_contact_phone: string | null;
+  /** Set once an admin has spoken to the real owner. */
+  owner_confirmed_at: string | null;
+  owner_confirmed_by: string | null;
   is_shared_home: boolean;
   rooms_available: number | null;
   existing_flatmates: number | null;
@@ -455,6 +468,11 @@ export type Database = {
       };
       viewing_slot_going_count: { Args: { p_slot_id: string }; Returns: number };
       viewing_slot_pending_count: { Args: { p_slot_id: string }; Returns: number };
+      confirm_listing_with_owner: {
+        Args: { p_property_id: string; p_confirmed: boolean };
+        Returns: undefined;
+      };
+      refresh_listing_verification: { Args: { p_property_id: string }; Returns: undefined };
       respond_to_booking: {
         Args: { p_booking_id: string; p_accept: boolean };
         Returns: ViewingBookingRow;
@@ -474,7 +492,8 @@ export type Database = {
       verification_status: VerificationStatus;
       document_type: DocumentType;
       property_type: PropertyType;
-      listing_tenure: ListingTenure;
+      listing_kind: ListingKind;
+      owner_relationship: OwnerRelationship;
       furnished_status: FurnishedStatus;
       occupancy_preference: OccupancyPreference;
       food_preference: FoodPreference;

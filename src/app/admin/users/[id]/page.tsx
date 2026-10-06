@@ -8,7 +8,11 @@ import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PROPERTY_STATUS_LABELS, VIEWING_BOOKING_STATUS_LABELS } from "@/lib/constants";
+import {
+  OWNER_RELATIONSHIP_LABELS,
+  PROPERTY_STATUS_LABELS,
+  VIEWING_BOOKING_STATUS_LABELS,
+} from "@/lib/constants";
 import { avatarUrl, formatDate, formatRent, initials } from "@/lib/utils";
 import { getAdminUserDetail } from "@/server/admin-queries";
 import type { ViewingBookingStatus } from "@/types";
@@ -170,7 +174,7 @@ export default async function AdminUserDetailPage({
                 </Link>
                 <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                   <Badge variant="secondary">{PROPERTY_STATUS_LABELS[l.status]}</Badge>
-                  <Badge variant="secondary" className="capitalize">{l.tenure}</Badge>
+                  <Badge variant="secondary">{l.listing_kind === "roommate" ? "Flatmate" : OWNER_RELATIONSHIP_LABELS[l.owner_relationship]}</Badge>
                   {l.is_verified && <VerifiedBadge kind="property" />}
                   <span>{formatRent(l.rent)}</span>
                 </div>

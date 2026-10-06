@@ -31,6 +31,7 @@ import {
   FURNISHED_LABELS,
   OCCUPANCY_LABELS,
   PROPERTY_TYPE_LABELS,
+  listingBadgeKind,
 } from "@/lib/constants";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { avatarUrl, describeSize, formatDate, formatRent, initials } from "@/lib/utils";
@@ -92,7 +93,9 @@ export default async function PropertyDetailsPage({ params }: { params: Params }
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             {property.is_verified && (
-              <VerifiedBadge kind={property.tenure === "sublet" ? "host" : "owner"} />
+              <VerifiedBadge
+                kind={listingBadgeKind(property.listing_kind, property.owner_relationship)}
+              />
             )}
             {property.owner.is_verified && <VerifiedBadge />}
             {property.status !== "active" && (
@@ -239,7 +242,12 @@ export default async function PropertyDetailsPage({ params }: { params: Params }
                 </Avatar>
                 <div>
                   <p className="flex items-center gap-2 font-semibold">
-                    {property.owner.full_name}
+                    <Link
+                      href={`/users/${property.owner.id}`}
+                      className="text-primary hover:underline"
+                    >
+                      {property.owner.full_name}
+                    </Link>
                     {property.owner.is_verified && <VerifiedBadge />}
                   </p>
                   <p className="text-xs text-muted-foreground">

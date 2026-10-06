@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 
-import { AdminListingStatusButton } from "@/components/admin/admin-actions";
+import { AdminListingStatusButton, OwnerConfirmButton } from "@/components/admin/admin-actions";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,9 @@ import {
   PROPERTY_STATUS_LABELS,
   PROPERTY_TYPE_LABELS,
   VIEWING_BOOKING_STATUS_LABELS,
+  OWNER_RELATIONSHIP_LABELS,
+  listingBadgeKind,
+  needsOwnerCall,
 } from "@/lib/constants";
 import { describeSize, formatDate, formatRent, publicMediaUrl } from "@/lib/utils";
 import { getAdminListingDetail } from "@/server/admin-queries";
@@ -78,11 +81,15 @@ export default async function AdminListingDetailPage({
                 {PROPERTY_STATUS_LABELS[property.status]}
               </Badge>
               <Badge variant="secondary" className="capitalize">
-                {property.tenure}
+                {property.listing_kind === "roommate"
+                  ? "Flatmate"
+                  : OWNER_RELATIONSHIP_LABELS[property.owner_relationship]}
               </Badge>
               {property.is_shared_home && <Badge variant="secondary">Shared home</Badge>}
               {property.is_verified && (
-                <VerifiedBadge kind={property.tenure === "sublet" ? "host" : "owner"} />
+                <VerifiedBadge
+                  kind={listingBadgeKind(property.listing_kind, property.owner_relationship)}
+                />
               )}
             </div>
           </div>
@@ -95,6 +102,12 @@ export default async function AdminListingDetailPage({
             <ExternalLink className="size-4" />
             Public page
           </Link>
+          {needsOwnerCall(property.listing_kind, property.owner_relationship) && (
+            <OwnerConfirmButton
+              propertyId={property.id}
+              confirmed={Boolean(property.owner_confirmed_at)}
+            />
+          )}
           <AdminListingStatusButton propertyId={property.id} status={property.status} />
         </div>
       </div>
@@ -106,9 +119,26 @@ export default async function AdminListingDetailPage({
         <Stat label="Reviews" value={detail.reviewCount} />
       </div>
 
+      {needsOwnerCall(property.listing_kind, property.owner_relationship) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display text-lg">Owner to call</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            <p className="font-medium">{property.owner_contact_name ?? "—"}</p>
+            <p className="text-muted-foreground">{property.owner_contact_phone ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">
+              {property.owner_confirmed_at
+                ? `Confirmed ${formatDate(property.owner_confirmed_at)}`
+                : "Not yet confirmed — the listing can't be verified until this call is made."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle className="font-display text-lg">Owner</CardTitle>
+          <CardTitle className="font-display text-lg">Listed by</CardTitle>
         </CardHeader>
         <CardContent>
           {property.owner ? (

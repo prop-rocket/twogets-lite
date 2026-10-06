@@ -17,6 +17,9 @@ import type {
   ViewingAvailabilityRuleRow,
   ViewingSlotWithCountsRow,
   ViewingBookingStatus,
+  TenantProfileRow,
+  HomeownerProfileRow,
+  PublicUser,
 } from "@/types";
 
 export interface PropertySearchParams {
@@ -460,4 +463,60 @@ export async function getShortlistCounts(propertyIds: string[]): Promise<Record<
     counts[pid] = results[i].error ? 0 : (results[i].data ?? 0);
   });
   return counts;
+}
+
+// ---------------------------------------------------------------------------
+// Public profile
+//
+// Both sides vet each other before a site visit is agreed. RLS decides how much
+// is visible rather than this query: homeowner_profiles is world-readable, and
+// tenant_profiles only comes back for an owner the person has actually booked
+// with (tenant_profiles_booked_owner, which matches a booking in ANY status so
+// it already covers a pending request). A null renter profile therefore means
+// "not allowed to see it", and the page falls back to the public summary.
+// ---------------------------------------------------------------------------
+export interface PublicProfile {
+  user: PublicUser;
+  renterProfile: TenantProfileRow | null;
+  hostProfile: HomeownerProfileRow | null;
+  listings: PropertyListItem[];
+  reviews: ReviewWithReviewer[];
+}
+
+export async function getPublicProfile(userId: string): Promise<PublicProfile | null> {
+  const supabase = await createClient();
+
+  const { data: user } = await supabase
+    .from("users")
+    .select(PUBLIC_USER_FIELDS)
+    .eq("id", userId)
+    .maybeSingle();
+  if (!user) return null;
+
+  const [renter, host, listings, reviews] = await Promise.all([
+    supabase.from("tenant_profiles").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("homeowner_profiles").select("*").eq("user_id", userId).maybeSingle(),
+    supabase
+      .from("properties")
+      .select(LIST_SELECT)
+      .eq("owner_id", userId)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(6),
+    supabase
+      .from("reviews")
+      .select(`*, reviewer:users!reviews_reviewer_id_fkey(${PUBLIC_USER_FIELDS})`)
+      .eq("reviewee_id", userId)
+      .eq("is_approved", true)
+      .order("created_at", { ascending: false })
+      .limit(10),
+  ]);
+
+  return {
+    user: user as unknown as PublicUser,
+    renterProfile: (renter.data as TenantProfileRow | null) ?? null,
+    hostProfile: (host.data as HomeownerProfileRow | null) ?? null,
+    listings: (listings.data ?? []) as unknown as PropertyListItem[],
+    reviews: (reviews.data ?? []) as unknown as ReviewWithReviewer[],
+  };
 }

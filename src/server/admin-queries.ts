@@ -259,7 +259,7 @@ export interface AdminUserDetail {
   user: UserRow;
   tenantProfile: TenantProfileRow | null;
   homeownerProfile: HomeownerProfileRow | null;
-  listings: Pick<PropertyRow, "id" | "title" | "city" | "status" | "rent" | "is_verified" | "tenure">[];
+  listings: Pick<PropertyRow, "id" | "title" | "city" | "status" | "rent" | "is_verified" | "listing_kind" | "owner_relationship">[];
   bookings: {
     id: string;
     status: string;
@@ -297,7 +297,7 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
     supabase.from("homeowner_profiles").select("*").eq("user_id", userId).maybeSingle(),
     supabase
       .from("properties")
-      .select("id, title, city, status, rent, is_verified, tenure")
+      .select("id, title, city, status, rent, is_verified, listing_kind, owner_relationship")
       .eq("owner_id", userId)
       .order("created_at", { ascending: false }),
     supabase

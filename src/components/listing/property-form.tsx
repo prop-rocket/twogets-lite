@@ -27,7 +27,8 @@ import {
   OCCUPANCY_LABELS,
   PROPERTY_TYPE_LABELS,
   SHARED_SPACE_OPTIONS,
-  TENURE_LABELS,
+  LISTING_KIND_LABELS,
+  OWNER_RELATIONSHIP_LABELS,
 } from "@/lib/constants";
 import { publicMediaUrl } from "@/lib/utils";
 import { createProperty, deletePropertyImage, updateProperty } from "@/server/actions/properties";
@@ -49,7 +50,11 @@ export function PropertyForm({
   const router = useRouter();
   const isEdit = Boolean(property);
   const [propertyType, setPropertyType] = React.useState(property?.property_type ?? "apartment");
+  const [listingKind, setListingKind] = React.useState(property?.listing_kind ?? "rental");
+  const [relationship, setRelationship] = React.useState(property?.owner_relationship ?? "self");
   const isRoom = propertyType === "room";
+  // We ring the real owner before trusting a listing that isn't theirs.
+  const needsOwnerContact = listingKind === "rental" && relationship !== "self";
   const [uploadedPaths, setUploadedPaths] = React.useState<string[]>([]);
   const [uploading, setUploading] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -177,28 +182,94 @@ export function PropertyForm({
         </div>
       </section>
 
-      {/* Tenure + flatshare details */}
+      {/* Whose property + flatshare details */}
       <section className="space-y-4">
-        <h2 className="font-display text-xl font-semibold">Your relationship to this place</h2>
+        <h2 className="font-display text-xl font-semibold">Whose property is this?</h2>
+
         <div className="space-y-1.5">
-          <Label>Do you own it?</Label>
-          <Select name="tenure" defaultValue={property?.tenure ?? "owned"}>
+          <Label>What are you posting?</Label>
+          <Select
+            name="listingKind"
+            defaultValue={property?.listing_kind ?? "rental"}
+            onValueChange={(v) => setListingKind(v as typeof listingKind)}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(TENURE_LABELS).map(([value, label]) => (
+              {Object.entries(LISTING_KIND_LABELS).map(([value, label]) => (
                 <SelectItem key={value} value={value}>
                   {label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">
-            Owners verify with an ownership document; subletters verify with a rental agreement
-            and a landlord NOC.
-          </p>
         </div>
+
+        {listingKind === "rental" ? (
+          <div className="space-y-1.5">
+            <Label>Who owns it?</Label>
+            <Select
+              name="ownerRelationship"
+              defaultValue={property?.owner_relationship ?? "self"}
+              onValueChange={(v) => setRelationship(v as typeof relationship)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(OWNER_RELATIONSHIP_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {relationship === "self"
+                ? "Verify with a utility bill, property tax receipt or sale deed."
+                : relationship === "parents"
+                  ? "Verify with a ration card, or your Aadhaar showing a parent's name."
+                  : "Verify with your Aadhaar and a written authorisation from the owner."}
+              {relationship !== "self" &&
+                " We'll also call the owner before the listing is verified."}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              TwoGets is broker-free — we only list properties the owner has agreed to.
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            You already live here and want a flatmate. Verify with your own rental agreement —
+            no ownership document needed.
+          </p>
+        )}
+
+        {needsOwnerContact && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="ownerContactName">Owner&apos;s name</Label>
+              <Input
+                id="ownerContactName"
+                name="ownerContactName"
+                defaultValue={property?.owner_contact_name ?? ""}
+                required
+              />
+              <FieldError errors={errors?.ownerContactName} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ownerContactPhone">Owner&apos;s phone</Label>
+              <Input
+                id="ownerContactPhone"
+                name="ownerContactPhone"
+                inputMode="tel"
+                defaultValue={property?.owner_contact_phone ?? ""}
+                required
+              />
+              <FieldError errors={errors?.ownerContactPhone} />
+            </div>
+          </div>
+        )}
 
         <label className="flex items-center gap-3 text-sm font-medium">
           <Switch

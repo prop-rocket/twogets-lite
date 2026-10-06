@@ -3,7 +3,8 @@ import type {
   FoodPreference,
   FurnishedStatus,
   IncomeRange,
-  ListingTenure,
+  ListingKind,
+  OwnerRelationship,
   OccupancyPreference,
   PropertyStatus,
   PropertyType,
@@ -25,9 +26,15 @@ export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   room: "Room in a shared home",
 };
 
-export const TENURE_LABELS: Record<ListingTenure, string> = {
-  owned: "I own this place",
-  sublet: "I rent it and am subletting",
+export const LISTING_KIND_LABELS: Record<ListingKind, string> = {
+  rental: "Letting out a property",
+  roommate: "Looking for a flatmate in my home",
+};
+
+export const OWNER_RELATIONSHIP_LABELS: Record<OwnerRelationship, string> = {
+  self: "Mine",
+  parents: "My parents'",
+  known: "Someone I know (authorised me)",
 };
 
 export const SHARED_SPACE_OPTIONS = [
@@ -74,16 +81,33 @@ export const DOCUMENT_LABELS: Record<DocumentType, string> = {
   sale_deed: "Sale Deed",
   rental_agreement: "Rental Agreement",
   landlord_noc: "Landlord NOC",
+  ration_card: "Ration Card",
+  authorisation_letter: "Authorisation Letter",
 };
 
 export const IDENTITY_DOCUMENTS: DocumentType[] = ["aadhaar", "pan"];
 export const OWNERSHIP_DOCUMENTS: DocumentType[] = ["utility_bill", "property_tax_receipt", "sale_deed"];
-/** A subletter proves the right to let: the agreement, plus the owner's permission. */
-export const SUBLET_DOCUMENTS: DocumentType[] = ["rental_agreement", "landlord_noc"];
+/** A flatmate post proves you live there, not that you own it. */
+export const RESIDENCY_DOCUMENTS: DocumentType[] = ["rental_agreement"];
+/** The property belongs to a parent. */
+export const PARENT_DOCUMENTS: DocumentType[] = ["ration_card", "aadhaar"];
+/** Someone else's property, with their written authorisation. */
+export const AUTHORISED_DOCUMENTS: DocumentType[] = ["aadhaar", "authorisation_letter"];
 
-/** Which documents verify a listing depends on whether its lister owns it. */
-export function documentsForTenure(tenure: ListingTenure): DocumentType[] {
-  return tenure === "sublet" ? SUBLET_DOCUMENTS : OWNERSHIP_DOCUMENTS;
+/** Which documents verify a listing, given whose property it is. */
+export function documentsForListing(
+  kind: ListingKind,
+  relationship: OwnerRelationship,
+): DocumentType[] {
+  if (kind === "roommate") return RESIDENCY_DOCUMENTS;
+  if (relationship === "parents") return PARENT_DOCUMENTS;
+  if (relationship === "known") return AUTHORISED_DOCUMENTS;
+  return OWNERSHIP_DOCUMENTS;
+}
+
+/** Non-self rentals are only trusted once an admin has spoken to the owner. */
+export function needsOwnerCall(kind: ListingKind, relationship: OwnerRelationship): boolean {
+  return kind === "rental" && relationship !== "self";
 }
 
 export const VERIFICATION_STATUS_LABELS: Record<VerificationStatus, string> = {
@@ -162,3 +186,16 @@ export const POPULAR_CITIES = [
   "Kolkata",
   "Gurugram",
 ] as const;
+
+/**
+ * What a verified listing's badge should say. A non-self rental is deliberately
+ * NOT "Verified Homeowner" — the lister isn't the owner; what we verified is the
+ * listing (documents plus a call to the real owner).
+ */
+export function listingBadgeKind(
+  kind: ListingKind,
+  relationship: OwnerRelationship,
+): "owner" | "host" | "property" {
+  if (kind === "roommate") return "host";
+  return relationship === "self" ? "owner" : "property";
+}

@@ -4,7 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import { DocumentUploadCard } from "@/components/verification/document-upload-card";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { Badge } from "@/components/ui/badge";
-import { documentsForTenure } from "@/lib/constants";
+import { documentsForListing, listingBadgeKind, needsOwnerCall } from "@/lib/constants";
 import { getActiveMode } from "@/lib/mode";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import type { DocumentType, VerificationRequestRow } from "@/types";
@@ -13,8 +13,9 @@ const DOCUMENT_HINTS: Partial<Record<DocumentType, string>> = {
   utility_bill: "Recent electricity/water bill in your name.",
   property_tax_receipt: "Latest property tax payment receipt.",
   sale_deed: "Registered sale deed (first page is enough).",
-  rental_agreement: "Your signed rental agreement for this place.",
-  landlord_noc: "A no-objection letter from the owner allowing you to sublet.",
+  rental_agreement: "Your own rental agreement, showing you live here.",
+  ration_card: "A ration card showing you and your parent at this address.",
+  authorisation_letter: "A signed letter from the owner authorising you to list it.",
 };
 
 export const metadata = { title: "Verification Center" };
@@ -41,7 +42,7 @@ export default async function VerificationPage() {
     user.can_host
       ? await supabase
           .from("properties")
-          .select("id, title, is_verified, tenure")
+          .select("id, title, is_verified, listing_kind, owner_relationship, owner_confirmed_at")
           .eq("owner_id", user.id)
           .order("created_at", { ascending: false })
       : { data: null };
@@ -106,11 +107,13 @@ export default async function VerificationPage() {
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="font-semibold">{property.title}</h3>
                   {property.is_verified && (
-                    <VerifiedBadge kind={property.tenure === "sublet" ? "host" : "owner"} />
+                    <VerifiedBadge
+                      kind={listingBadgeKind(property.listing_kind, property.owner_relationship)}
+                    />
                   )}
                 </div>
                 <div className="grid gap-4 md:grid-cols-3">
-                  {documentsForTenure(property.tenure).map((type) => (
+                  {documentsForListing(property.listing_kind, property.owner_relationship).map((type) => (
                     <DocumentUploadCard
                       key={type}
                       documentType={type}
@@ -122,10 +125,21 @@ export default async function VerificationPage() {
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {property.tenure === "sublet"
-                    ? "Both the rental agreement and the landlord NOC must be approved — the agreement alone doesn't show you may sublet."
-                    : "Any one approved document earns this listing the Verified badge."}
+                  {property.listing_kind === "roommate"
+                    ? "Your rental agreement shows you live here — that's what verifies a flatmate post."
+                    : property.owner_relationship === "known"
+                      ? "Both your Aadhaar and the authorisation letter must be approved."
+                      : property.owner_relationship === "parents"
+                        ? "A ration card, or your Aadhaar showing a parent's name."
+                        : "Any one approved document earns this listing the Verified badge."}
                 </p>
+                {needsOwnerCall(property.listing_kind, property.owner_relationship) && (
+                  <p className="text-xs text-muted-foreground">
+                    {property.owner_confirmed_at
+                      ? "✓ We've spoken to the owner."
+                      : "We'll also call the owner on the number you gave before this listing is verified."}
+                  </p>
+                )}
               </div>
             ))
           )}
