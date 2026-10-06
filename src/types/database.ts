@@ -473,6 +473,26 @@ export type Database = {
         Returns: undefined;
       };
       refresh_listing_verification: { Args: { p_property_id: string }; Returns: undefined };
+      admin_signup_timeseries: {
+        Args: { p_days?: number };
+        Returns: { day: string; tenants: number; hosts: number }[];
+      };
+      admin_listing_breakdown: {
+        Args: Record<PropertyKey, never>;
+        Returns: { city: string; total: number; active: number; verified: number }[];
+      };
+      admin_funnel: { Args: { p_days?: number }; Returns: Record<string, number> };
+      admin_viewing_health: { Args: { p_days?: number }; Returns: Record<string, number> };
+      admin_verification_sla: {
+        Args: Record<PropertyKey, never>;
+        Returns: Record<string, number>;
+      };
+      admin_user_mix: { Args: Record<PropertyKey, never>; Returns: Record<string, number> };
+      admin_cancel_viewing_slot: { Args: { p_slot_id: string }; Returns: undefined };
+      admin_set_booking_status: {
+        Args: { p_booking_id: string; p_status: ViewingBookingStatus };
+        Returns: undefined;
+      };
       respond_to_booking: {
         Args: { p_booking_id: string; p_accept: boolean };
         Returns: ViewingBookingRow;

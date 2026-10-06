@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Eye } from "lucide-react";
 
-import { BanUserButton, UserPlanButton } from "@/components/admin/admin-actions";
+import { BanUserButton, UserPlanButton, UserRoleButton } from "@/components/admin/admin-actions";
 import { TrustScore } from "@/components/shared/trust-score";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -81,12 +81,22 @@ export default async function AdminUserDetailPage({
             </div>
           </div>
         </div>
-        {user.role !== "admin" && (
-          <div className="flex flex-wrap gap-2">
-            <UserPlanButton userId={user.id} plan={user.plan ?? "free"} />
-            <BanUserButton userId={user.id} isBanned={user.is_banned} />
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {user.role !== "admin" && (
+            <>
+              <Link
+                href={`/admin/users/${user.id}/view-as`}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium hover:bg-muted"
+              >
+                <Eye className="size-4" />
+                View as
+              </Link>
+              <UserPlanButton userId={user.id} plan={user.plan ?? "free"} />
+              <BanUserButton userId={user.id} isBanned={user.is_banned} />
+            </>
+          )}
+          <UserRoleButton userId={user.id} role={user.role} />
+        </div>
       </div>
 
       {/* Reputation + activity */}

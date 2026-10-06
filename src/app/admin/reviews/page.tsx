@@ -1,7 +1,7 @@
 import { Star } from "lucide-react";
 
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
-import { ModerateReviewButton } from "@/components/admin/admin-actions";
+import { ExportButton, ModerateReviewButton } from "@/components/admin/admin-actions";
 import { ReviewCard } from "@/components/review/review-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
@@ -52,12 +52,15 @@ export default async function AdminReviewsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-bold">Reviews</h1>
-        <p className="text-muted-foreground">
-          Hide abusive or fake reviews — hidden reviews stop counting toward ratings and trust
-          scores. {total} {total === 1 ? "review" : "reviews"} match these filters.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Reviews</h1>
+          <p className="text-muted-foreground">
+            Hide abusive or fake reviews — hidden reviews stop counting toward ratings and trust
+            scores. {total} {total === 1 ? "review" : "reviews"} match these filters.
+          </p>
+        </div>
+        <ExportButton dataset="reviews" />
       </div>
 
       <AdminFilterBar fields={FILTERS} />

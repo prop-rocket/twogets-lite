@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
-import { BanUserButton, UserPlanButton } from "@/components/admin/admin-actions";
+import { BanUserButton, ExportButton, UserPlanButton } from "@/components/admin/admin-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
 import { TrustScore } from "@/components/shared/trust-score";
@@ -112,11 +112,14 @@ export default async function AdminUsersPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-bold">Users</h1>
-        <p className="text-muted-foreground">
-          {total} {total === 1 ? "account" : "accounts"} match these filters.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Users</h1>
+          <p className="text-muted-foreground">
+            {total} {total === 1 ? "account" : "accounts"} match these filters.
+          </p>
+        </div>
+        <ExportButton dataset="users" />
       </div>
 
       <AdminFilterBar fields={FILTERS} />

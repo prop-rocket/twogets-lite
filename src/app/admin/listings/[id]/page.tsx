@@ -3,14 +3,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 
-import { AdminListingStatusButton, OwnerConfirmButton } from "@/components/admin/admin-actions";
+import {
+  AdminBookingStatusSelect,
+  AdminListingStatusButton,
+  OwnerConfirmButton,
+} from "@/components/admin/admin-actions";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   PROPERTY_STATUS_LABELS,
   PROPERTY_TYPE_LABELS,
-  VIEWING_BOOKING_STATUS_LABELS,
   OWNER_RELATIONSHIP_LABELS,
   listingBadgeKind,
   needsOwnerCall,
@@ -181,11 +184,13 @@ export default async function AdminListingDetailPage({
                 ) : (
                   <span>—</span>
                 )}
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <Badge variant="secondary">
-                    {VIEWING_BOOKING_STATUS_LABELS[b.status as ViewingBookingStatus] ?? b.status}
-                  </Badge>
+                <span className="flex flex-wrap items-center gap-2 text-muted-foreground">
                   {formatDate(b.created_at)}
+                  <AdminBookingStatusSelect
+                    bookingId={b.id}
+                    status={b.status as ViewingBookingStatus}
+                    propertyId={property.id}
+                  />
                 </span>
               </div>
             ))}

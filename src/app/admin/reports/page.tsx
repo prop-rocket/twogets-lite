@@ -2,7 +2,7 @@ import { Flag } from "lucide-react";
 
 import { EntityLink } from "@/components/admin/entity-link";
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
-import { ReportActions } from "@/components/admin/admin-actions";
+import { ExportButton, ReportActions } from "@/components/admin/admin-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
 import { Badge } from "@/components/ui/badge";
@@ -54,11 +54,14 @@ export default async function AdminReportsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-bold">Reports</h1>
-        <p className="text-muted-foreground">
-          Community-flagged users, listings and reviews. {total} match these filters.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Reports</h1>
+          <p className="text-muted-foreground">
+            Community-flagged users, listings and reviews. {total} match these filters.
+          </p>
+        </div>
+        <ExportButton dataset="reports" />
       </div>
 
       <AdminFilterBar fields={FILTERS} />

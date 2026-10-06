@@ -5,7 +5,14 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { verificationReviewSchema } from "@/lib/validations";
-import type { ActionResult, PropertyStatus, ReportStatus, UserPlan } from "@/types";
+import type {
+  ActionResult,
+  PropertyStatus,
+  ReportStatus,
+  UserPlan,
+  UserRole,
+  ViewingBookingStatus,
+} from "@/types";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -187,6 +194,71 @@ export async function confirmListingWithOwner(
   revalidatePath(`/admin/listings/${propertyId}`);
   revalidatePath(`/properties/${propertyId}`);
   return { ok: true, message: confirmed ? "Owner confirmed" : "Owner confirmation removed" };
+}
+
+/**
+ * Promote or demote an admin.
+ *
+ * Guardrails: you can't change your own role (no accidental self-demotion),
+ * and the database refuses to leave the platform with zero admins — enforced
+ * there rather than here so it holds whatever path does the update.
+ */
+export async function setUserRole(userId: string, role: UserRole): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: "Admin access required" };
+  if (userId === admin.id) return { ok: false, error: "You can't change your own role" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("users")
+    .update({ role, can_host: role === "homeowner" ? true : undefined })
+    .eq("id", userId);
+  if (error) {
+    return {
+      ok: false,
+      error: error.message.includes("last admin")
+        ? "That's the last admin — promote someone else first"
+        : error.message,
+    };
+  }
+
+  await logAdmin(supabase, `user.role.${role}`, "user", userId, { role });
+
+  revalidatePath("/admin/users");
+  revalidatePath(`/admin/users/${userId}`);
+  return { ok: true, message: `Role set to ${role}` };
+}
+
+/** Admin steps into a viewing dispute — owners keep their own separate paths. */
+export async function adminCancelSlot(slotId: string, propertyId: string): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: "Admin access required" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_cancel_viewing_slot", { p_slot_id: slotId });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/admin/listings/${propertyId}`);
+  return { ok: true, message: "Slot cancelled" };
+}
+
+export async function adminSetBookingStatus(
+  bookingId: string,
+  status: ViewingBookingStatus,
+  propertyId: string,
+): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, error: "Admin access required" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_set_booking_status", {
+    p_booking_id: bookingId,
+    p_status: status,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/admin/listings/${propertyId}`);
+  return { ok: true, message: `Booking set to ${status}` };
 }
 
 export async function moderateReview(reviewId: string, approve: boolean): Promise<ActionResult> {

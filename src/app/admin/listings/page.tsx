@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Building2 } from "lucide-react";
 
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
-import { AdminListingStatusButton } from "@/components/admin/admin-actions";
+import { AdminListingStatusButton, ExportButton } from "@/components/admin/admin-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
@@ -83,11 +83,14 @@ export default async function AdminListingsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-bold">Listings</h1>
-        <p className="text-muted-foreground">
-          {total} {total === 1 ? "listing" : "listings"} match these filters.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Listings</h1>
+          <p className="text-muted-foreground">
+            {total} {total === 1 ? "listing" : "listings"} match these filters.
+          </p>
+        </div>
+        <ExportButton dataset="listings" />
       </div>
 
       <AdminFilterBar fields={filters} />

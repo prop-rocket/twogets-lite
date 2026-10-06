@@ -401,3 +401,59 @@ export async function getAdminListingDetail(propertyId: string): Promise<AdminLi
     auditLog: (audit.data ?? []) as AdminListingDetail["auditLog"],
   };
 }
+
+// ---------------------------------------------------------------------------
+// Analytics
+//
+// Every metric comes from a SECURITY DEFINER function that checks is_admin()
+// first, so these are plain .rpc() calls on the normal RLS client — no
+// service-role key anywhere on this path.
+// ---------------------------------------------------------------------------
+
+export interface SignupPoint {
+  day: string;
+  tenants: number;
+  hosts: number;
+}
+
+export interface CityRow {
+  city: string;
+  total: number;
+  active: number;
+  verified: number;
+}
+
+export interface AdminAnalytics {
+  signups: SignupPoint[];
+  cities: CityRow[];
+  funnel: Record<string, number>;
+  viewings: Record<string, number>;
+  verification: Record<string, number>;
+  users: Record<string, number>;
+}
+
+export async function getAdminAnalytics(days = 30): Promise<AdminAnalytics> {
+  const supabase = await createClient();
+
+  const [signups, cities, funnel, viewings, verification, users] = await Promise.all([
+    supabase.rpc("admin_signup_timeseries", { p_days: days }),
+    supabase.rpc("admin_listing_breakdown"),
+    supabase.rpc("admin_funnel", { p_days: days }),
+    supabase.rpc("admin_viewing_health", { p_days: days }),
+    supabase.rpc("admin_verification_sla"),
+    supabase.rpc("admin_user_mix"),
+  ]);
+
+  for (const r of [signups, cities, funnel, viewings, verification, users]) {
+    if (r.error) console.error("getAdminAnalytics:", r.error.message);
+  }
+
+  return {
+    signups: (signups.data ?? []) as unknown as SignupPoint[],
+    cities: (cities.data ?? []) as unknown as CityRow[],
+    funnel: (funnel.data ?? {}) as unknown as Record<string, number>,
+    viewings: (viewings.data ?? {}) as unknown as Record<string, number>,
+    verification: (verification.data ?? {}) as unknown as Record<string, number>,
+    users: (users.data ?? {}) as unknown as Record<string, number>,
+  };
+}

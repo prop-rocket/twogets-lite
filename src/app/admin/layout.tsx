@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import {
+  BarChart3,
   Building2,
   FileCheck2,
   Flag,
@@ -16,6 +17,7 @@ export const metadata = { title: "Admin" };
 
 const ITEMS: SidebarItem[] = [
   { href: "/admin", label: "Overview", icon: <LayoutDashboard className="size-4" />, exact: true },
+  { href: "/admin/analytics", label: "Analytics", icon: <BarChart3 className="size-4" /> },
   { href: "/admin/verifications", label: "Verifications", icon: <FileCheck2 className="size-4" /> },
   { href: "/admin/users", label: "Users", icon: <Users className="size-4" /> },
   { href: "/admin/listings", label: "Listings", icon: <Building2 className="size-4" /> },

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Ban, Check, ExternalLink, Eye, EyeOff, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Ban, Check, Download, ExternalLink, Eye, EyeOff, ShieldCheck, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,11 @@ import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/shared/submit-button";
 import { ConfirmActionDialog } from "@/components/admin/confirm-action-dialog";
 import {
+  adminCancelSlot,
+  adminSetBookingStatus,
   adminSetListingStatus,
   confirmListingWithOwner,
+  setUserRole,
   getDocumentSignedUrl,
   moderateReview,
   resolveReport,
@@ -26,7 +29,13 @@ import {
   setUserBanned,
   setUserPlan,
 } from "@/server/actions/admin";
-import type { PropertyStatus, ReportStatus, UserPlan } from "@/types";
+import type {
+  PropertyStatus,
+  ReportStatus,
+  UserPlan,
+  UserRole,
+  ViewingBookingStatus,
+} from "@/types";
 
 export function ViewDocumentButton({ requestId }: { requestId: string }) {
   const [pending, startTransition] = React.useTransition();
@@ -284,6 +293,126 @@ export function OwnerConfirmButton({
     >
       <ShieldCheck />
       {confirmed ? "Undo owner confirmation" : "Confirmed with owner"}
+    </Button>
+  );
+}
+
+/** Promote or demote. The last-admin rule is enforced in the database. */
+export function UserRoleButton({ userId, role }: { userId: string; role: UserRole | null }) {
+  const [, startTransition] = React.useTransition();
+  const makeAdmin = role !== "admin";
+
+  function run() {
+    startTransition(async () => {
+      const result = await setUserRole(userId, makeAdmin ? "admin" : "tenant");
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.error);
+    });
+  }
+
+  return (
+    <ConfirmActionDialog
+      trigger={
+        <Button size="sm" variant={makeAdmin ? "outline" : "destructive"}>
+          <ShieldCheck />
+          {makeAdmin ? "Make admin" : "Remove admin"}
+        </Button>
+      }
+      title={makeAdmin ? "Grant admin access?" : "Remove admin access?"}
+      description={
+        makeAdmin
+          ? "They'll be able to verify documents, ban accounts, moderate reviews and see everyone's data."
+          : "They'll lose the admin panel and drop back to a normal renter account."
+      }
+      confirmLabel={makeAdmin ? "Make admin" : "Remove admin"}
+      variant={makeAdmin ? "default" : "destructive"}
+      onConfirm={run}
+    />
+  );
+}
+
+/** Admin override on a booking, for disputes the owner won't resolve. */
+export function AdminBookingStatusSelect({
+  bookingId,
+  status,
+  propertyId,
+}: {
+  bookingId: string;
+  status: ViewingBookingStatus;
+  propertyId: string;
+}) {
+  const [pending, startTransition] = React.useTransition();
+  const OPTIONS: ViewingBookingStatus[] = [
+    "confirmed",
+    "declined",
+    "cancelled",
+    "attended",
+    "no_show",
+  ];
+
+  return (
+    <select
+      disabled={pending}
+      value={status}
+      aria-label="Override booking status"
+      onChange={(e) =>
+        startTransition(async () => {
+          const result = await adminSetBookingStatus(
+            bookingId,
+            e.target.value as ViewingBookingStatus,
+            propertyId,
+          );
+          if (result.ok) toast.success(result.message);
+          else toast.error(result.error);
+        })
+      }
+      className="h-8 rounded-lg border border-input bg-background px-2 text-xs"
+    >
+      {OPTIONS.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** Cancel a slot on the owner's behalf. */
+export function AdminCancelSlotButton({
+  slotId,
+  propertyId,
+}: {
+  slotId: string;
+  propertyId: string;
+}) {
+  return (
+    <ConfirmActionDialog
+      trigger={
+        <Button size="sm" variant="destructive">
+          Cancel slot
+        </Button>
+      }
+      title="Cancel this viewing slot?"
+      description="Everyone holding or awaiting a place on it is cancelled too. The owner is not asked first."
+      confirmLabel="Cancel slot"
+      variant="destructive"
+      onConfirm={async () => {
+        const result = await adminCancelSlot(slotId, propertyId);
+        if (result.ok) toast.success(result.message);
+        else toast.error(result.error);
+      }}
+    />
+  );
+}
+
+/** Download the current dataset as CSV. */
+export function ExportButton({ dataset }: { dataset: string }) {
+  return (
+    <Button asChild size="sm" variant="outline">
+      <a href={`/admin/export?dataset=${dataset}`} download>
+        <Download />
+        Export CSV
+      </a>
     </Button>
   );
 }
