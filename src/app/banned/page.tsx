@@ -1,8 +1,11 @@
 import { ShieldAlert } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
+import { Button } from "@/components/ui/button";
+import { SUPPORT_EMAIL } from "@/lib/constants";
+import { logout } from "@/server/actions/auth";
 
-export const metadata = { title: "Account suspended" };
+export const metadata = { title: "Account restricted" };
 
 export default function BannedPage() {
   return (
@@ -11,13 +14,25 @@ export default function BannedPage() {
       <div className="rounded-full bg-red-100 p-4">
         <ShieldAlert className="size-8 text-red-600" />
       </div>
-      <div className="space-y-2">
-        <h1 className="font-display text-2xl font-bold">Your account is suspended</h1>
+      <div className="space-y-3">
+        <h1 className="font-display text-2xl font-bold">Your account has been restricted</h1>
         <p className="max-w-md text-muted-foreground">
-          Your TwoGets account has been suspended for violating our trust & safety guidelines. If
-          you believe this is a mistake, contact support.
+          You can still sign in, but you can&apos;t browse homes, list a property or book
+          viewings while the restriction is in place.
+        </p>
+        <p className="text-muted-foreground">
+          Please contact our team at{" "}
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold text-primary underline">
+            {SUPPORT_EMAIL}
+          </a>{" "}
+          and we&apos;ll look into it.
         </p>
       </div>
+      <form action={logout}>
+        <Button type="submit" variant="outline">
+          Sign out
+        </Button>
+      </form>
     </div>
   );
 }

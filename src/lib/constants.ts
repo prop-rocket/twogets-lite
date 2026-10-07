@@ -199,3 +199,6 @@ export function listingBadgeKind(
   if (kind === "roommate") return "host";
   return relationship === "self" ? "owner" : "property";
 }
+
+/** Where restricted accounts and support queries are directed. */
+export const SUPPORT_EMAIL = "hello@proprocket.in";

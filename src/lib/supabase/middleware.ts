@@ -4,6 +4,8 @@ import type { Database } from "@/types/database";
 
 const PROTECTED_PREFIXES = ["/dashboard", "/admin", "/onboarding"];
 const AUTH_PAGES = ["/login", "/signup"];
+/** Reachable while restricted, so a banned user isn't trapped with no way out. */
+const BANNED_ALLOWED = ["/banned", "/auth/"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -49,6 +51,25 @@ export async function updateSession(request: NextRequest) {
     url.pathname = "/dashboard";
     url.search = "";
     return NextResponse.redirect(url);
+  }
+
+  // A restricted account can still sign in — it just can't use the platform.
+  // Checked here rather than per-layout so browsing (/properties, /swipe, a
+  // profile page) is covered too, not only the dashboard. One primary-key
+  // lookup, and only for signed-in users.
+  if (user && !BANNED_ALLOWED.some((p) => pathname.startsWith(p))) {
+    const { data: profile } = await supabase
+      .from("users")
+      .select("is_banned")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile?.is_banned) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/banned";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;
