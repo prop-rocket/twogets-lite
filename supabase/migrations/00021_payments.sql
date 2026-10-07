@@ -11,25 +11,35 @@
 -- the tenant-facing Plus/free behaviour is untouched.
 -- =============================================================================
 
-create type public.subscription_status as enum
-  ('trialing', 'active', 'past_due', 'cancelled', 'expired');
-create type public.transaction_status as enum
-  ('created', 'authorized', 'captured', 'failed', 'refunded');
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'subscription_status') then
+    create type public.subscription_status as enum
+      ('trialing', 'active', 'past_due', 'cancelled', 'expired');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'transaction_status') then
+    create type public.transaction_status as enum
+      ('created', 'authorized', 'captured', 'failed', 'refunded');
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- What can be sold. Prices in paise — integer money, never floating point.
 -- ---------------------------------------------------------------------------
-create table public.plans (
+create table if not exists public.plans (
   code        text primary key,
   name        text not null,
   price_paise integer not null check (price_paise >= 0),
-  interval    text not null default 'month' check (interval in ('month', 'year', 'once')),
+  -- NOT named `interval`: that is a type keyword, and a bare reference in a
+  -- CHECK parses as a type constructor rather than a column.
+  billing_interval text not null default 'month'
+    check (billing_interval in ('month', 'year', 'once')),
   features    jsonb not null default '[]',
   active      boolean not null default true,
   created_at  timestamptz not null default now()
 );
 
-insert into public.plans (code, name, price_paise, interval, features) values
+insert into public.plans (code, name, price_paise, billing_interval, features) values
   ('free', 'Free',  0,      'month', '["3 shortlists a day"]'),
   ('plus', 'Plus',  29900,  'month', '["Unlimited shortlists","Priority support"]')
 on conflict (code) do nothing;
@@ -38,7 +48,7 @@ on conflict (code) do nothing;
 -- Who is on what. provider defaults to 'manual' because today an admin keys
 -- these in; Razorpay later writes the same rows with its own ids.
 -- ---------------------------------------------------------------------------
-create table public.subscriptions (
+create table if not exists public.subscriptions (
   id                      uuid primary key default gen_random_uuid(),
   user_id                 uuid not null references public.users (id) on delete cascade,
   plan_code               text not null references public.plans (code),
@@ -57,15 +67,15 @@ create table public.subscriptions (
 );
 
 -- At most one live subscription per person.
-create unique index subscriptions_one_live_per_user
+create unique index if not exists subscriptions_one_live_per_user
   on public.subscriptions (user_id)
   where status in ('trialing', 'active', 'past_due');
-create index subscriptions_user_idx on public.subscriptions (user_id);
+create index if not exists subscriptions_user_idx on public.subscriptions (user_id);
 
 -- ---------------------------------------------------------------------------
 -- Money actually moving.
 -- ---------------------------------------------------------------------------
-create table public.transactions (
+create table if not exists public.transactions (
   id                uuid primary key default gen_random_uuid(),
   user_id           uuid not null references public.users (id) on delete cascade,
   subscription_id   uuid references public.subscriptions (id) on delete set null,
@@ -83,13 +93,13 @@ create table public.transactions (
   created_at        timestamptz not null default now(),
   captured_at       timestamptz
 );
-create index transactions_user_idx on public.transactions (user_id, created_at desc);
+create index if not exists transactions_user_idx on public.transactions (user_id, created_at desc);
 
 -- ---------------------------------------------------------------------------
 -- Raw gateway callbacks, stored before interpretation. Unused until Razorpay
 -- exists, but having it now means the webhook has somewhere idempotent to land.
 -- ---------------------------------------------------------------------------
-create table public.payment_events (
+create table if not exists public.payment_events (
   id                uuid primary key default gen_random_uuid(),
   provider          text not null,
   event_type        text not null,
@@ -124,6 +134,7 @@ begin
 end;
 $$;
 
+drop trigger if exists subscriptions_sync_plan on public.subscriptions;
 create trigger subscriptions_sync_plan
   after insert or update or delete on public.subscriptions
   for each row execute function public.sync_user_plan();
@@ -136,21 +147,28 @@ alter table public.subscriptions  enable row level security;
 alter table public.transactions   enable row level security;
 alter table public.payment_events enable row level security;
 
+drop policy if exists "plans_read_all" on public.plans;
 create policy "plans_read_all" on public.plans for select using (true);
+drop policy if exists "plans_admin_write" on public.plans;
 create policy "plans_admin_write" on public.plans for all
   using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "subscriptions_read_own" on public.subscriptions;
 create policy "subscriptions_read_own" on public.subscriptions
   for select using (user_id = auth.uid() or public.is_admin());
+drop policy if exists "subscriptions_admin_write" on public.subscriptions;
 create policy "subscriptions_admin_write" on public.subscriptions
   for all using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "transactions_read_own" on public.transactions;
 create policy "transactions_read_own" on public.transactions
   for select using (user_id = auth.uid() or public.is_admin());
+drop policy if exists "transactions_admin_write" on public.transactions;
 create policy "transactions_admin_write" on public.transactions
   for all using (public.is_admin()) with check (public.is_admin());
 
 -- Gateway payloads are admin-only; nothing user-facing should read them.
+drop policy if exists "payment_events_admin" on public.payment_events;
 create policy "payment_events_admin" on public.payment_events
   for all using (public.is_admin()) with check (public.is_admin());
 
@@ -178,7 +196,7 @@ begin
                          from public.subscriptions s
                          join public.plans pl on pl.code = s.plan_code
                         where s.status in ('trialing', 'active')
-                          and pl.interval = 'month')
+                          and pl.billing_interval = 'month')
   ) into v_result
   from public.transactions
   where created_at >= v_since;

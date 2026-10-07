@@ -277,7 +277,8 @@ export type PlanRow = {
   name: string;
   /** Integer paise — money is never floating point. */
   price_paise: number;
-  interval: "month" | "year" | "once";
+  /** Named billing_interval in SQL — `interval` is a Postgres type keyword. */
+  billing_interval: "month" | "year" | "once";
   features: string[];
   active: boolean;
   created_at: string;
